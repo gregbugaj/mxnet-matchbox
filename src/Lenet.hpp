@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <mxnet-cpp/MxNetCpp.h>
 #include "utils.hpp"
+#include "fileutil.hpp"
 
 using namespace mxnet::cpp;
 using mxnet::cpp::Symbol;
@@ -17,20 +18,14 @@ using mxnet::cpp::Symbol;
 class Lenet {
 
 public :
-
-    Lenet()
-            : ctx_cpu(Context(DeviceType::kCPU, 0)),
-#if MXNET_USE_CPU
-            ctx_dev(Context(DeviceType::kCPU, 0))
-#else
-              ctx_dev(Context(DeviceType::kCPU, 0))
-#endif
-    {}
+    Lenet() {
+        // noop
+    }
 
     Symbol symbol() {
         /*define the symbolic net*/
         Symbol data = Symbol::Variable("data");
-        Symbol data_label = Symbol::Variable("data_label");
+        Symbol label = Symbol::Variable("data_label");
 
         Symbol conv1_w("conv1_w"), conv1_b("conv1_b");
         Symbol conv2_w("conv2_w"), conv2_b("conv2_b");
@@ -74,7 +69,7 @@ public :
         // second fullc
         Symbol fc2 = FullyConnected("fc2", tanh3, fc2_w, fc2_b, 10);
         // loss
-        Symbol lenet = SoftmaxOutput("softmax", fc2, data_label);
+        Symbol lenet = SoftmaxOutput("softmax", fc2, label);
 
         for (auto s : lenet.ListArguments()) {
             LG << s;
@@ -107,12 +102,14 @@ public :
         float learning_rate = 1e-4;
         float weight_decay = 1e-4;
 
-        auto dev_ctx = Context::cpu();
+        // Determine context
+        auto ctx = Context::cpu();
         int num_gpu;
         MXGetGPUCount(&num_gpu);
 #if !MXNET_USE_CPU
         if (num_gpu > 0) {
-            dev_ctx = Context::gpu();
+            ctx = Context::gpu();
+            batch_size = 256;
         }
 #endif
 
@@ -120,17 +117,26 @@ public :
         const Shape data_shape = Shape(batch_size, 1, H, W),
                 label_shape = Shape(batch_size);
 
-        args_map["data"] = NDArray(data_shape, dev_ctx);
-        args_map["data_label"] = NDArray(label_shape, dev_ctx);
+        args_map["data"] = NDArray(data_shape, ctx);
+        args_map["data_label"] = NDArray(label_shape, ctx);
 
-        net.InferArgsMap(dev_ctx, &args_map, args_map);
+        net.InferArgsMap(ctx, &args_map, args_map);
 
-        std::vector<std::string> data_files = {
-                "/home/gbugaj/dev/lbp-matcher/test-deck/data/mnist_data/train-images-idx3-ubyte",
-                "/home/gbugaj/dev/lbp-matcher/test-deck/data/mnist_data/train-labels-idx1-ubyte",
-                "/home/gbugaj/dev/lbp-matcher/test-deck/data/mnist_data/t10k-images-idx3-ubyte",
-                "/home/gbugaj/dev/lbp-matcher/test-deck/data/mnist_data/t10k-labels-idx1-ubyte"
+        auto path = getDataDirectory({"mnist", "standard"});
+
+        std::cout << "path  : " << path;
+        std::vector<std::string> filenames = {
+                "train-images-idx3-ubyte",
+                "train-labels-idx1-ubyte",
+                "t10k-images-idx3-ubyte",
+                "t10k-labels-idx1-ubyte"
         };
+
+        std::vector<std::string> data_files;
+        for (auto val : filenames) {
+            std::string file = path / val;
+            data_files.push_back(file);
+        }
 
         auto train_iter = MXDataIter("MNISTIter");
         if (!setDataIter(&train_iter, "Train", data_files, batch_size)) {
@@ -138,7 +144,7 @@ public :
         }
 
         auto val_iter = MXDataIter("MNISTIter");
-        if (!setDataIter(&val_iter, "Label", data_files, batch_size)) {
+        if (!setDataIter(&val_iter, "data_label", data_files, batch_size)) {
             throw std::runtime_error("Unable to create Train Iterator");
         }
 
@@ -149,24 +155,31 @@ public :
                 ->SetParam("lr", learning_rate)
                 ->SetParam("wd", weight_decay);
 
-        auto *exec = net.SimpleBind(dev_ctx, args_map);
+        auto *exec = net.SimpleBind(ctx, args_map);
         auto arg_names = net.ListArguments();
 
-        Accuracy train_acc;
+        auto destPath = getDataDirectory({"models", "lenet"});
+        std::string model_path = destPath / "lenet.json";
+
+        Accuracy train_acc, acu_val;
+        LogLoss logloss_train, logloss_val;
+
         float score = 0;
 
-        for (int iter = 0; iter < max_epoch; ++iter) {
+        for (int epoch = 0; epoch < max_epoch; ++epoch) {
             int samples = 0;
-            train_iter.Reset();
+            /*reset the metric every epoch*/
             train_acc.Reset();
+            /*reset the data iter every epoch*/
+            train_iter.Reset();
 
             auto tic = std::chrono::system_clock::now();
-
+            int iter = 0;
             while (train_iter.Next()) {
                 samples += batch_size;
                 auto data_batch = train_iter.GetDataBatch();
+                /*use copyto to feed new data and label to the executor*/
                 auto resized = ResizeInput(data_batch.data, data_shape);
-
                 resized.CopyTo(&args_map["data"]);
                 data_batch.label.CopyTo(&args_map["data_label"]);
                 NDArray::WaitAll();
@@ -182,28 +195,32 @@ public :
 
                     opt->Update(i, exec->arg_arrays[i], exec->grad_arrays[i]);
                 }
-                // Update metric
+
+                NDArray::WaitAll();
+                // Update metrics
                 train_acc.Update(data_batch.label, exec->outputs[0]);
+                logloss_train.Reset();
+                logloss_train.Update(data_batch.label, exec->outputs[0]);
+                ++iter;
+
+                LG << "EPOCH: " << epoch << " ITER: " << iter
+                   << " Train Accuracy: " << train_acc.Get()
+                   << " Train Loss: " << logloss_train.Get();
             }
-
-            /*save the parameters*/
-            std::string prefix = "/home/gbugaj/dev/lbp-matcher/test-deck/data/lenet";
-            std::string param_path = prefix + "-" + std::to_string(iter) + ".params";
-
-            LG << "EPOCH: " << iter << " Saving to..." << param_path;
-            SaveCheckpoint(param_path, net, exec);
-            net.Save("/home/gbugaj/dev/lbp-matcher/test-deck/data/lenet.json");
 
             // one epoch of training is finished
             auto toc = std::chrono::system_clock::now();
             float duration = std::chrono::duration_cast<std::chrono::milliseconds>
                                      (toc - tic).count() / 1000.0;
 
-            LG << "Epoch[" << iter << "] " << samples / duration << " samples/sec " << "Train-Accuracy="
-               << train_acc.Get();
+            LG << "EPOCH [" << epoch << "] " << samples / duration << " samples/sec "
+               << " Train Accuracy: " << train_acc.Get();
 
-            Accuracy acc;
+            LG << "Val Epoch: " << epoch;
+            acu_val.Reset();
             val_iter.Reset();
+            logloss_val.Reset();
+            iter = 0;
 
             while (val_iter.Next()) {
                 auto data_batch = val_iter.GetDataBatch();
@@ -217,27 +234,38 @@ public :
                 exec->Forward(false);
                 NDArray::WaitAll();
 
-                acc.Update(data_batch.label, exec->outputs[0]);
-                score = acc.Get();
+                acu_val.Update(data_batch.label, exec->outputs[0]);
+                score = acu_val.Get();
+
+                acu_val.Update(data_batch.label, exec->outputs[0]);
+                logloss_val.Update(data_batch.label, exec->outputs[0]);
+                LG << "EPOCH: " << epoch << " ITER: " << iter << " Val Accuracy: " << acu_val.Get();
+                ++iter;
             }
-            LG << "Epoch [" << iter << "] accuracy=" << acc.Get();
+
+            LG << "EPOCH [" << epoch << "] Val Accuracy: " << acu_val.Get();
+            LG << "EPOCH [" << epoch << "] Val LogLoss: " << logloss_val.Get();
+            /*save the parameters*/
+            std::string param_path = destPath / ("lenet-" + std::to_string(epoch) + ".params");
+            LG << "EPOCH [" << epoch << "] Saving params to..." << param_path;
+            LG << "EPOCH [" << epoch << "] Saving model  to..." << model_path;
+            SaveCheckpoint(param_path, net, exec);
+            // saving model so in case we stopped mid training we have something to work with
+            net.Save(model_path);
         }
 
         LG << "Score " << score;
         std::cerr << "Saving the model" << std::endl;
         auto json = net.ToJSON();
         std::cerr << json;
-        net.Save("/home/gbugaj/dev/lbp-matcher/test-deck/data/lenet.json");
+        net.Save(model_path);
         std::cerr << "Done saving the model." << std::endl;
 
+        /*cleanup*/
         delete exec;
         delete opt;
         MXNotifyShutdown();
     }
-
-private:
-    Context ctx_cpu;
-    Context ctx_dev;
 };
 
 #endif //MATCHBOX_LENET_HPP

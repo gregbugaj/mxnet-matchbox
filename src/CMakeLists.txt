@@ -49,7 +49,7 @@ configure_file(
 
 # Source files
 
-set(SOURCE_FILES main.cpp Lenet.hpp)
+set(SOURCE_FILES main.cpp Lenet.hpp fileutil.cpp fileutil.hpp)
 
 # Build as executable
 add_executable(${TARGET_NAME} ${SOURCE_FILES})
@@ -111,3 +111,10 @@ target_link_libraries(${TARGET_NAME} stdc++fs)
 
 # Install
 install(TARGETS ${TARGET_NAME} DESTINATION bin)
+
+
+# copy data files
+message("++ EnvParameter : CMAKE_BINARY_DIR     = ${CMAKE_BINARY_DIR}")
+
+file(GLOB MY_TESTDECK_FILES "${CMAKE_SOURCE_DIR}/data")
+file(COPY ${MY_TESTDECK_FILES} DESTINATION "${CMAKE_BINARY_DIR}/")

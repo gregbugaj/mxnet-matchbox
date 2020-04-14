@@ -6,8 +6,9 @@
 #include <opencv2/opencv.hpp>
 #include <version.h>
 #include "Lenet.hpp"
-namespace fs = std::experimental::filesystem;
+#include "fileutil.hpp"
 
+namespace fs = std::experimental::filesystem;
 using namespace mxnet::cpp;
 using namespace std::chrono;
 
@@ -31,8 +32,9 @@ int main(int argc, char const *argv[]) {
     LG << "OpenCV    version : " << CV_VERSION;
     LG << "MxNet Base";
 
-    evaluate();
-//    train();
+    //evaluate();
+
+    train();
     return 0;
 }
 
@@ -45,7 +47,6 @@ void train() {
     Lenet trainer;
     trainer.train(10);
 }
-
 
 /*!
  * Dump existing data iterators

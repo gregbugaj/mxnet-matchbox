@@ -20,5 +20,5 @@ Project has following dependencies
 
 
 ## Resources
-
+https://github.com/zalandoresearch/fashion-mnist
 https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=95651665
