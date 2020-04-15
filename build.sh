@@ -13,4 +13,5 @@ mkdir -p build && cd build
 
 # Ninja build
 cmake -G Ninja -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON  -DCMAKE_BUILD_TYPE=Debug ..
-ninja -C . -j $(nproc)
+#ninja -C . -j $(nproc)
+cmake --build . --target install

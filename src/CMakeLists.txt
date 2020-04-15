@@ -12,6 +12,9 @@ SET(GCC_CUSTOM_LINK_FLAGS    "-lstdc++fs")
 SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${GCC_CUSTOM_COMPILE_FLAGS}" )
 SET(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${GCC_CUSTOM_LINK_FLAGS}" )
 
+# This is to prevent : -- Set runtime path of "./bin/matchbox" to ""
+SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
 # Set a default build type if none was specified
 if(NOT CMAKE_BUILD_TYPE)
     message(STATUS "Setting build type to 'Release' as none was specified.")
@@ -53,7 +56,6 @@ set(SOURCE_FILES main.cpp Lenet.hpp fileutil.cpp fileutil.hpp)
 
 # Build as executable
 add_executable(${TARGET_NAME} ${SOURCE_FILES})
-set_target_properties(${TARGET_NAME} PROPERTIES LINKER_LANGUAGE CXX)
 
 ### Leptonica
 include(FindLeptonica)
@@ -109,8 +111,11 @@ file(COPY ${MY_TESTDECK_FILES} DESTINATION "${CMAKE_BINARY_DIR}/")
 # Filesystem support
 target_link_libraries(${TARGET_NAME} stdc++fs)
 
+set_target_properties(${TARGET_NAME} PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
+
 # Install
-install(TARGETS ${TARGET_NAME} DESTINATION bin)
+install(TARGETS ${TARGET_NAME} RUNTIME DESTINATION bin)
+
 
 
 # copy data files
