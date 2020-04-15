@@ -144,7 +144,7 @@ public :
         }
 
         auto val_iter = MXDataIter("MNISTIter");
-        if (!setDataIter(&val_iter, "data_label", data_files, batch_size)) {
+        if (!setDataIter(&val_iter, "Label", data_files, batch_size)) {
             throw std::runtime_error("Unable to create Train Iterator");
         }
 

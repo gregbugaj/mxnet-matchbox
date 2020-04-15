@@ -52,7 +52,7 @@ configure_file(
 
 # Source files
 
-set(SOURCE_FILES main.cpp Lenet.hpp fileutil.cpp fileutil.hpp)
+set(SOURCE_FILES main.cpp Lenet.hpp fileutil.cpp fileutil.hpp Predictor.cpp Predictor.hpp)
 
 # Build as executable
 add_executable(${TARGET_NAME} ${SOURCE_FILES})
@@ -117,9 +117,8 @@ set_target_properties(${TARGET_NAME} PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE
 install(TARGETS ${TARGET_NAME} RUNTIME DESTINATION bin)
 
 
-
-# copy data files
-message("++ EnvParameter : CMAKE_BINARY_DIR     = ${CMAKE_BINARY_DIR}")
-
-file(GLOB MY_TESTDECK_FILES "${CMAKE_SOURCE_DIR}/data")
-file(COPY ${MY_TESTDECK_FILES} DESTINATION "${CMAKE_BINARY_DIR}/")
+# copy data files to build dir
+# IF we use set  in CLION Working Dir = $ContentRoot$ then we don't have to do this
+# message("++ EnvParameter : CMAKE_BINARY_DIR     = ${CMAKE_BINARY_DIR}")
+# file(GLOB MY_TESTDECK_FILES "${CMAKE_SOURCE_DIR}/data")
+# file(COPY ${MY_TESTDECK_FILES} DESTINATION "${CMAKE_BINARY_DIR}/")
