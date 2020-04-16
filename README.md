@@ -22,3 +22,5 @@ Project has following dependencies
 ## Resources
 https://github.com/zalandoresearch/fashion-mnist
 https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=95651665
+
+https://mxnet.apache.org/api/python/docs/tutorials/packages/gluon/image/mnist.html

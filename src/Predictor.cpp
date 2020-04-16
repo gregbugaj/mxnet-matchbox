@@ -45,6 +45,7 @@ enum TypeFlag {
  */
 Predictor::Predictor(const std::string &model_json_file,
                      const std::string &model_params_file,
+                     const std::string &synset_file,
                      const Shape &input_shape,
                      bool use_gpu,
                      bool enable_tensorrt,
@@ -75,9 +76,14 @@ Predictor::Predictor(const std::string &model_json_file,
         throw std::runtime_error("ImageRecordIter cannot be created");
     }*/
 
+
+    // Load Synset(Labels)
+    LoadSynset(synset_file);
+
     // Load the model
     LoadModel(model_json_file);
-    // Initilize the parameters
+
+    // Initialize the parameters
     // benchmark=true && model_params_file.empty(), randomly initialize parameters
     // else, load parameters
     if (benchmark_ && model_params_file.empty()) {
@@ -112,6 +118,7 @@ Predictor::Predictor(const std::string &model_json_file,
 
     // Create an executor after binding the model to input parameters.
     executor_ = new Executor(net_, global_ctx_, arg_arrays, grad_arrays, grad_reqs, aux_arrays);
+
 }
 
 /*
@@ -132,6 +139,7 @@ int Predictor::GetDataLayerType() {
     return ret_type;
 }
 
+/// https://answers.opencv.org/question/72564/how-can-i-convert-an-image-into-a-1d-vector-in-c/
 NDArray Predictor::LoadInputImage(const std::string &image_file) {
     if (!FileExists(image_file)) {
         LG << "Image file " << image_file << " does not exist";
@@ -139,21 +147,19 @@ NDArray Predictor::LoadInputImage(const std::string &image_file) {
     }
     LG << "Loading the image " << image_file << std::endl;
 
-    std::vector<float> array;
-    cv::Mat mat = cv::imread(image_file);
+    cv::Mat mat = cv::imread(image_file, cv::IMREAD_GRAYSCALE);
+    mat.convertTo(mat, CV_32F);
+
     /*resize pictures to (28, 28) according to the pretrained model*/
+    int channels = input_shape_[1];
     int height = input_shape_[2];
     int width = input_shape_[3];
-    int channels = input_shape_[1];
 
     cv::resize(mat, mat, cv::Size(width, height));
-    for (int c = 0; c < channels; ++c) {
-        for (int i = 0; i < height; ++i) {
-            for (int j = 0; j < width; ++j) {
-                array.push_back(static_cast<float>(mat.data[(i * height + j) * 3 + c]));
-            }
-        }
-    }
+    std::vector<float> array((float *) mat.data, (float *) mat.data + mat.rows * mat.cols);
+
+    std::cout << mat;
+
     NDArray image_data = NDArray(input_shape_, global_ctx_, false);
     image_data.SyncCopyFromCPU(array.data(), input_shape_.Size());
     NDArray::WaitAll();
@@ -330,10 +336,6 @@ void Predictor::BenchmarkScore(int num_inference_batches) {
 void Predictor::Score(const std::string &image_file) {
     // Load the input image
     NDArray image_data = LoadInputImage(image_file);
-
-    // Create metrics
-    Accuracy val_acc;
-    val_acc.Reset();
     LG << "Running the forward pass on model to predict the image";
 
     /*
@@ -367,6 +369,20 @@ void Predictor::Score(const std::string &image_file) {
     predicted.WaitToRead();
     NDArray::WaitAll();
 
+
+    auto best_idx = predicted.At(0);
+    auto best_accuracy = array.At(0, best_idx);
+    LG << "best_idx, best_accuracy = " << best_idx << " : " << best_accuracy;
+
+    if (output_labels.empty()) {
+        LG << "The model predicts the highest accuracy of " << best_accuracy << " at index "
+           << best_idx;
+    } else {
+        LG << "The model predicts the input image to be a [" << output_labels[best_idx]
+           << " ] with Accuracy = " << best_accuracy << std::endl;
+    }
+
+
 /*      auto best_idx = predicted.At(0);
         auto best_accuracy = array.At(0, best_idx);
         LG << "best_idx, best_accuracy = " << best_idx << " : " << best_accuracy;*/
@@ -376,17 +392,6 @@ void Predictor::Score(const std::string &image_file) {
     std::vector<mx_float> label_data(len);
 
     predicted.SyncCopyToCPU(&pred_data, len);
-    data_batch.label.SyncCopyToCPU(&label_data, len);
-
-    NDArray(const Shape &shape, const Context &context,
-    bool delay_alloc = true, int dtype = 0);
-
-    NDArray(input_shape_, global_ctx_, false);
-    ;
-//    NDArray label = NDArray(new Shape(1));
-    NDArray label = NDArray(new Shape(1), global_ctx_, false, 1);
-    label.SyncCopyFromCPU(&output_labels, 1);
-
 
     for (mx_uint i = 0; i < len; ++i) {
         auto val = pred_data[i];  // predicted
@@ -400,7 +405,6 @@ void Predictor::Score(const std::string &image_file) {
            << best_accuracy;
     }
 
-    val_acc.Update(data_batch.label, executor_->outputs[0]);
     ms = ms_now() - ms;
 
     auto args_name = net_.ListArguments();
@@ -412,7 +416,6 @@ void Predictor::Score(const std::string &image_file) {
     LG << "INFO:" << "Image shape: " << "(" << input_shape_[1] << ", "
        << input_shape_[2] << ", " << input_shape_[3] << ")";
     LG << "INFO:" << "Batch size = " << input_shape_[0] << " for inference";
-    LG << "INFO:" << "Accuracy: " << val_acc.Get();
     LG << "INFO:" << "Throughput: " << (1000.0 * input_shape_[0] / ms)
        << " images per second";
 }

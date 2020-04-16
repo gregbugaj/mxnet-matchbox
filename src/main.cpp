@@ -64,19 +64,25 @@ int main(int argc, char const *argv[]) {
     LG << "OpenCV    version : " << CV_VERSION;
     LG << "MxNet Base";
 
-    evaluate();
+//    evaluate();
 
-//    train();
+    train();
     return 0;
 }
 
 int evaluate() {
-    auto path = getDataDirectory({"models", "lenet"});
+    auto modelRoot = getDataDirectory({"models", "lenet"});
+    auto testRoot = getDataDirectory({"mnist", "test", "standard"});
+    auto dataRoot = getDataDirectory({"mnist", "standard"});
 
     LG << "MxNet Predicting";
     try {
-        std::string model_file_json = path / "lenet.json";
-        std::string model_file_params = path / "lenet-9.params";
+
+        std::string synset_file = dataRoot / "synset.txt";
+        std::string model_file_json = modelRoot / "lenet.json";
+        std::string model_file_params = modelRoot / "lenet-9.params";
+        std::string imageFile = testRoot / "3.png";
+
 
         // Generated via Python
         /*std::string model_file_json = "/home/gbugaj/dev/3rdparty/mxnet/example/image-classification/mnist_py-symbol.json";
@@ -95,7 +101,7 @@ int evaluate() {
         std::string input_shape("1 28 28");
         int seed = 48564309;
         int shuffle_chunk_seed = 3982304;
-        int data_nthreads = 4;
+        int data_nthreads = 10;
 
         if (model_file_json.empty()
             || (!benchmark && model_file_params.empty())
@@ -113,15 +119,15 @@ int evaluate() {
         std::vector<float> rgb_std = createVectorFromString<float>(input_rgb_std);
 
         // Initialize the predictor object
-        Predictor predict(model_file_json, model_file_params, input_data_shape, use_gpu, enable_tensorrt,
+        Predictor predict(model_file_json, model_file_params, synset_file, input_data_shape, use_gpu, enable_tensorrt,
                           data_nthreads, data_layer_type, rgb_mean, rgb_std, shuffle_chunk_seed,
                           seed, benchmark);
 
-        benchmark = true;
+        benchmark = false;
         if (benchmark) {
             predict.BenchmarkScore(num_inference_batches);
         } else {
-            predict.Score("");
+            predict.Score(imageFile);
         }
     } catch (dmlc::Error &err) {
         LG << "Status: FAIL " << err.what();

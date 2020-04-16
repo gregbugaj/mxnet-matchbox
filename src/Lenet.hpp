@@ -114,8 +114,8 @@ public :
 #endif
 
         std::map<std::string, NDArray> args_map;
-        const Shape data_shape = Shape(batch_size, 1, H, W),
-                label_shape = Shape(batch_size);
+        const Shape data_shape  = Shape(batch_size, 1, H, W),
+                    label_shape = Shape(batch_size);
 
         args_map["data"] = NDArray(data_shape, ctx);
         args_map["data_label"] = NDArray(label_shape, ctx);

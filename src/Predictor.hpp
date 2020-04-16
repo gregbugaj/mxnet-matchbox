@@ -25,6 +25,7 @@ public:
 
     Predictor(const std::string &model_json_file,
               const std::string &model_params_file,
+              const std::string &synset_file,
               const Shape &input_shape,
               bool use_gpu,
               bool enable_tensorrt,
@@ -71,8 +72,8 @@ private:
     void InitParameters();
 
     inline bool FileExists(const std::string &name) {
-        std::ifstream fhandle(name.c_str());
-        return fhandle.good();
+        std::ifstream handle(name.c_str());
+        return handle.good();
     }
 
     int GetDataLayerType();
