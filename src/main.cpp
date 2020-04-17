@@ -64,9 +64,9 @@ int main(int argc, char const *argv[]) {
     LG << "OpenCV    version : " << CV_VERSION;
     LG << "MxNet Base";
 
-//    evaluate();
+    evaluate();
 
-    train();
+//    train();
     return 0;
 }
 
@@ -80,7 +80,7 @@ int evaluate() {
 
         std::string synset_file = dataRoot / "synset.txt";
         std::string model_file_json = modelRoot / "lenet.json";
-        std::string model_file_params = modelRoot / "lenet-9.params";
+        std::string model_file_params = modelRoot / "lenet-99.params";
         std::string imageFile = testRoot / "3.png";
 
 
@@ -139,7 +139,7 @@ int evaluate() {
 
 void train() {
     Lenet trainer;
-    trainer.train(10);
+    trainer.train(100);
 }
 
 /*!

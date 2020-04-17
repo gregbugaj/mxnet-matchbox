@@ -148,7 +148,7 @@ NDArray Predictor::LoadInputImage(const std::string &image_file) {
     LG << "Loading the image " << image_file << std::endl;
 
     cv::Mat mat = cv::imread(image_file, cv::IMREAD_GRAYSCALE);
-    mat.convertTo(mat, CV_32F);
+    mat.convertTo(mat, CV_32F, 1.f/255);
 
     /*resize pictures to (28, 28) according to the pretrained model*/
     int channels = input_shape_[1];
@@ -369,7 +369,6 @@ void Predictor::Score(const std::string &image_file) {
     predicted.WaitToRead();
     NDArray::WaitAll();
 
-
     auto best_idx = predicted.At(0);
     auto best_accuracy = array.At(0, best_idx);
     LG << "best_idx, best_accuracy = " << best_idx << " : " << best_accuracy;
@@ -382,17 +381,13 @@ void Predictor::Score(const std::string &image_file) {
            << " ] with Accuracy = " << best_accuracy << std::endl;
     }
 
-
-/*      auto best_idx = predicted.At(0);
-        auto best_accuracy = array.At(0, best_idx);
-        LG << "best_idx, best_accuracy = " << best_idx << " : " << best_accuracy;*/
-
     mx_uint len = output_labels.size();
     std::vector<mx_float> pred_data(len);
     std::vector<mx_float> label_data(len);
 
     predicted.SyncCopyToCPU(&pred_data, len);
 
+    // Display all candidates
     for (mx_uint i = 0; i < len; ++i) {
         auto val = pred_data[i];  // predicted
         auto label = label_data[i]; // expected
