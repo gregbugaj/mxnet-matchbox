@@ -150,7 +150,7 @@ public :
 
         Optimizer *opt = OptimizerRegistry::Find("sgd");
         opt->SetParam("momentum", 0.9)
-                ->SetParam("rescale_grad", 1.0)
+                ->SetParam("rescale_grad", 1.0 / batch_size)
                 ->SetParam("clip_gradient", 10)
                 ->SetParam("lr", learning_rate)
                 ->SetParam("wd", weight_decay);

@@ -64,9 +64,9 @@ int main(int argc, char const *argv[]) {
     LG << "OpenCV    version : " << CV_VERSION;
     LG << "MxNet Base";
 
-    evaluate();
+//    evaluate();
 
-//    train();
+    train();
     return 0;
 }
 

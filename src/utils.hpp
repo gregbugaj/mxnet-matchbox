@@ -48,6 +48,8 @@ bool setDataIter(MXDataIter *iter, const std::string &useType,
     } else if (useType == "Label") {
         iter->SetParam("image", data_files[2]);
         iter->SetParam("label", data_files[3]);
+    } else {
+        throw std::runtime_error("Unknown useType");
     }
 
     iter->CreateDataIter();
@@ -60,16 +62,16 @@ bool setDataIter(MXDataIter *iter, const std::string &useType,
    * @param filepath
    * @param exe
    */
-void LoadCheckpoint(const std::string& filepath, Executor *exe) {
+void LoadCheckpoint(const std::string &filepath, Executor *exe) {
 
     std::cerr << "Loading the model parameters." << std::endl;
     std::map<std::string, NDArray> params = NDArray::LoadToMap(filepath);
 
-    for (auto& iter : params) {
+    for (auto &iter : params) {
 
         auto type = iter.first.substr(0, 4);
         auto name = iter.first.substr(4);
-        std::cerr << "Type/name : " << type << ", " << name<<std::endl;
+        std::cerr << "Type/name : " << type << ", " << name << std::endl;
 
         NDArray target;
         if (type == "arg:")
@@ -88,7 +90,7 @@ void LoadCheckpoint(const std::string& filepath, Executor *exe) {
  * @param net
  * @param exe
  */
-void SaveCheckpoint(const std::string& filepath, Symbol& net, Executor *exe) {
+void SaveCheckpoint(const std::string &filepath, Symbol &net, Executor *exe) {
     auto save_args = exe->arg_dict();
     /*we do not want to save the data and label*/
     save_args.erase("data");
