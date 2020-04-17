@@ -92,16 +92,43 @@ public :
     /// \param max_epoch
     void train(int max_epoch = 10) {
         LG << "Training";
-        auto net = symbol();
 
         /*setup basic configs*/
+        int batch_size = 32;
         int W = 28;
         int H = 28;
-        int batch_size = 32;
-
         float learning_rate = 1e-4;
         float weight_decay = 1e-4;
 
+        auto path = getDataDirectory({"mnist", "standard"});
+
+        std::cout << "path  : " << path;
+        std::vector<std::string> filenames = {
+                "train-images-idx3-ubyte",
+                "train-labels-idx1-ubyte",
+                "t10k-images-idx3-ubyte",
+                "t10k-labels-idx1-ubyte"
+        };
+        std::vector<std::string> data_files;
+        for (auto val : filenames) {
+            std::string file = path / val;
+            data_files.push_back(file);
+        }
+
+        auto train_iter = MXDataIter("MNISTIter");
+        if (!setDataIter(&train_iter, "Train", data_files, batch_size)) {
+            throw std::runtime_error("Unable to create Train Iterator");
+        }
+
+        auto val_iter = MXDataIter("MNISTIter");
+        if (!setDataIter(&val_iter, "Label", data_files, batch_size)) {
+            throw std::runtime_error("Unable to create Validation Iterator");
+        }
+
+        auto destPath = getDataDirectory({"models", "lenet"});
+        std::string model_path = destPath / "lenet.json";
+
+        auto net = symbol();
         // Determine context
         auto ctx = Context::cpu();
         int num_gpu;
@@ -121,32 +148,13 @@ public :
         args_map["data_label"] = NDArray(label_shape, ctx);
 
         net.InferArgsMap(ctx, &args_map, args_map);
-
-        auto path = getDataDirectory({"mnist", "standard"});
-
-        std::cout << "path  : " << path;
-        std::vector<std::string> filenames = {
-                "train-images-idx3-ubyte",
-                "train-labels-idx1-ubyte",
-                "t10k-images-idx3-ubyte",
-                "t10k-labels-idx1-ubyte"
-        };
-
-        std::vector<std::string> data_files;
-        for (auto val : filenames) {
-            std::string file = path / val;
-            data_files.push_back(file);
+        //Initialize all parameters with uniform distribution U(-0.01, 0.01)
+        auto initializer = Xavier();
+        for (auto& arg : args_map) {
+            //arg.first is parameter name, and arg.second is the value
+            initializer(arg.first, &arg.second);
         }
 
-        auto train_iter = MXDataIter("MNISTIter");
-        if (!setDataIter(&train_iter, "Train", data_files, batch_size)) {
-            throw std::runtime_error("Unable to create Train Iterator");
-        }
-
-        auto val_iter = MXDataIter("MNISTIter");
-        if (!setDataIter(&val_iter, "Label", data_files, batch_size)) {
-            throw std::runtime_error("Unable to create Train Iterator");
-        }
 
         Optimizer *opt = OptimizerRegistry::Find("sgd");
         opt->SetParam("momentum", 0.9)
@@ -157,9 +165,6 @@ public :
 
         auto *exec = net.SimpleBind(ctx, args_map);
         auto arg_names = net.ListArguments();
-
-        auto destPath = getDataDirectory({"models", "lenet"});
-        std::string model_path = destPath / "lenet.json";
 
         Accuracy train_acc, acu_val;
         LogLoss logloss_train, logloss_val;
