@@ -80,9 +80,8 @@ int evaluate() {
 
         std::string synset_file = dataRoot / "synset.txt";
         std::string model_file_json = modelRoot / "lenet.json";
-        std::string model_file_params = modelRoot / "lenet-4.params";
+        std::string model_file_params = modelRoot / "lenet-99.params";
         std::string imageFile = testRoot / "3.png";
-
 
         // Generated via Python
         /*std::string model_file_json = "/home/gbugaj/dev/3rdparty/mxnet/example/image-classification/mnist_py-symbol.json";
