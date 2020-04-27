@@ -119,6 +119,14 @@ Predictor::Predictor(const std::string &model_json_file,
     // Create an executor after binding the model to input parameters.
     executor_ = new Executor(net_, global_ctx_, arg_arrays, grad_arrays, grad_reqs, aux_arrays);
 
+    for(const auto & layer_name:net_.ListOutputs()){
+        LG<<layer_name;
+    }
+
+    /*bind the executor
+    executor_ = net_.SimpleBind(global_ctx_, args_map_, std::map<std::string, NDArray>(),
+                              std::map<std::string, OpReqType>(), aux_map_);
+*/
 }
 
 /*
@@ -148,16 +156,16 @@ NDArray Predictor::LoadInputImage(const std::string &image_file) {
     LG << "Loading the image " << image_file << std::endl;
 
     cv::Mat mat = cv::imread(image_file, cv::IMREAD_GRAYSCALE);
-    mat.convertTo(mat, CV_32F, 1.f/255);
+    mat.convertTo(mat, CV_32F);
+//    mat.convertTo(mat, CV_32F, 1.f/255);
 
-    /*resize pictures to (28, 28) according to the pretrained model*/
+    // resize pictures to (28, 28) according to the pretrained model
     int channels = input_shape_[1];
     int height = input_shape_[2];
     int width = input_shape_[3];
 
     cv::resize(mat, mat, cv::Size(width, height));
     std::vector<float> array((float *) mat.data, (float *) mat.data + mat.rows * mat.cols);
-
     std::cout << mat;
 
     NDArray image_data = NDArray(input_shape_, global_ctx_, false);
@@ -175,7 +183,7 @@ void Predictor::LoadModel(const std::string &model_json_file) {
         throw std::runtime_error("Model file does not exist");
     }
     LG << "Loading the model from " << model_json_file << std::endl;
-    net_ = Symbol::Load(model_json_file);
+    net_ = Symbol::Load(model_json_file);//.GetInternals()["softmax_output"];
 
     if (enable_tensorrt_) {
         net_ = net_.GetBackendSymbol("TensorRT");
@@ -420,15 +428,11 @@ void Predictor::Score(const std::string &image_file) {
  * This information will be used later to report the label of input image.
  */
 void Predictor::LoadSynset(const std::string &synset_file) {
-    if (!FileExists(synset_file)) {
-        LG << "Synset file " << synset_file << " does not exist";
-        throw std::runtime_error("Synset file does not exist");
-    }
-    LG << "Loading the synset file.";
+    LG << "Loading the synset file : " << synset_file;
     std::ifstream fi(synset_file.c_str());
     if (!fi.is_open()) {
         std::cerr << "Error opening synset file " << synset_file << std::endl;
-        throw std::runtime_error("Error in opening the synset file.");
+        std::abort();
     }
     std::string lemma;
     while (getline(fi, lemma)) {

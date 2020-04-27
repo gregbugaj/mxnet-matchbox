@@ -19,8 +19,16 @@ Project has following dependencies
 ## Building
 
 
+# Minist as JPG
+https://www.kaggle.com/scolianni/mnistasjpg
+https://stats.stackexchange.com/questions/166600/mnist-dataset-black-or-white-background
+https://www.kaggle.com/scolianni/mnistasjpg
+
 ## Resources
 https://github.com/zalandoresearch/fashion-mnist
 https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=95651665
-
 https://mxnet.apache.org/api/python/docs/tutorials/packages/gluon/image/mnist.html
+
+
+# Python testing notes
+~/dev/3rdparty/mxnet/example/image-classification$ python3 ./train_mnist.py  --network lenet  --model-prefix /home/greg/dev/rms/matchbox/data/models/py-mlp/lenet

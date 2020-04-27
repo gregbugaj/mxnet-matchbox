@@ -71,23 +71,34 @@ int main(int argc, char const *argv[]) {
 }
 
 int evaluate() {
-    auto modelRoot = getDataDirectory({"models", "lenet"});
+
+    // /home/greg/dev/rms/matchbox/data/models/py-mlp/
+//    auto modelRoot = getDataDirectory({"models", "lenet"});
+    auto modelRoot = getDataDirectory({"models", "py-mlp"});
     auto testRoot = getDataDirectory({"mnist", "test", "standard"});
     auto dataRoot = getDataDirectory({"mnist", "standard"});
 
     LG << "MxNet Predicting";
     try {
 
-        std::string synset_file = dataRoot / "synset.txt";
-        std::string model_file_json = modelRoot / "lenet.json";
+  /*
+         std::string synset_file = dataRoot / "synset.txt";
+        std::string model_file_json = modelRoot / "lenet-symbol.json";
         std::string model_file_params = modelRoot / "lenet-99.params";
-        std::string imageFile = testRoot / "3.png";
+        std::string imageFile = testRoot / "black/3_img_106.jpg";
+   */
+
+        std::string synset_file = dataRoot / "synset.txt";
+        std::string model_file_json = modelRoot / "lenet-symbol.json";
+        std::string model_file_params = modelRoot / "lenet-0006.params";
+//        std::string imageFile = testRoot / "black/2_img_1.jpg";
+//        std::string imageFile = testRoot / "black/3_img_106.jpg";
+        std::string imageFile = testRoot / "black/8_img_110.jpg";
 
         // Generated via Python
         /*std::string model_file_json = "/home/gbugaj/dev/3rdparty/mxnet/example/image-classification/mnist_py-symbol.json";
         std::string model_file_params = "/home/gbugaj/dev/3rdparty/mxnet/example/image-classification/mnist_py-0015.params";
         */
-
         std::string input_rgb_mean("0 0 0");
         std::string input_rgb_std("1 1 1");
 
