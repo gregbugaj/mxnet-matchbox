@@ -44,7 +44,7 @@ public:
     /// https://mxnet.apache.org/api/cpp/docs/tutorials/cpp_inference
     /// https://discuss.mxnet.io/t/run-time-is-different-between-python-and-c/4052/2
     /// \param image_file
-    void Score(const std::string &image_file);
+    void predict(const std::string &image_file);
 
     ~Predictor();
 

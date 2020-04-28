@@ -32,3 +32,6 @@ https://mxnet.apache.org/api/python/docs/tutorials/packages/gluon/image/mnist.ht
 
 # Python testing notes
 ~/dev/3rdparty/mxnet/example/image-classification$ python3 ./train_mnist.py  --network lenet  --model-prefix /home/greg/dev/rms/matchbox/data/models/py-mlp/lenet
+
+# Network visualization 
+https://lutzroeder.github.io/netron/

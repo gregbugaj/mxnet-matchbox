@@ -22,7 +22,7 @@ public :
         // noop
     }
 
-    Symbol symbol() {
+    Symbol symbol(int num_classes = 10) {
         /*define the symbolic net*/
         Symbol data = Symbol::Variable("data");
         Symbol label = Symbol::Variable("data_label");
@@ -33,7 +33,7 @@ public :
         Symbol fc1_w("fc1_w"), fc1_b("fc1_b");
         Symbol fc2_w("fc2_w"), fc2_b("fc2_b");
 
-        conv1_w.SetAttribute("kernel", "(5, 5)");
+      /*  conv1_w.SetAttribute("kernel", "(5, 5)");
         conv1_w.SetAttribute("num_filter", "20");
 
         conv1_b.SetAttribute("kernel", "(5, 5)");
@@ -50,7 +50,7 @@ public :
 
         fc2_w.SetAttribute("num_hidden", "10");
         fc2_w.SetAttribute("num_hidden", "10");
-
+*/
         // first conv
         Symbol conv1 = Convolution("conv1", data, conv1_w, conv1_b, Shape(5, 5), 20);
         Symbol tanh1 = Activation("tanh1", conv1, ActivationActType::kTanh);
@@ -67,7 +67,7 @@ public :
         Symbol fc1 = FullyConnected("fc1", flatten, fc1_w, fc1_b, 500);
         Symbol tanh3 = Activation("tanh3", fc1, ActivationActType::kTanh);
         // second fullc
-        Symbol fc2 = FullyConnected("fc2", tanh3, fc2_w, fc2_b, 10);
+        Symbol fc2 = FullyConnected("fc2", tanh3, fc2_w, fc2_b, num_classes);
         // loss
         Symbol lenet = SoftmaxOutput("softmax", fc2, label);
 
@@ -92,16 +92,15 @@ public :
     /// \param max_epoch
     void train(int max_epoch = 10) {
         LG << "Training";
-
         /*setup basic configs*/
-        int batch_size = 32;
+        int batch_size = 64;
         int W = 28;
         int H = 28;
+
         float learning_rate = 1e-4;
         float weight_decay = 1e-4;
 
         auto path = getDataDirectory({"mnist", "standard"});
-
         std::cout << "path  : " << path;
         std::vector<std::string> filenames = {
                 "train-images-idx3-ubyte",
@@ -126,9 +125,9 @@ public :
         }
 
         auto destPath = getDataDirectory({"models", "lenet"});
-        std::string model_path = destPath / "lenet.json";
+        std::string model_path = destPath / "lenet-symbol.json";
 
-        auto net = symbol();
+        auto net = symbol(10);
         // Determine context
         auto ctx = Context::cpu();
         int num_gpu;
@@ -140,38 +139,47 @@ public :
         }
 #endif
 
+        /*args_map and aux_map is used for parameters' saving*/
         std::map<std::string, NDArray> args_map;
+        std::map<std::string, NDArray> aux_map;
         const Shape data_shape  = Shape(batch_size, 1, H, W),
                     label_shape = Shape(batch_size);
 
         args_map["data"] = NDArray(data_shape, ctx);
         args_map["data_label"] = NDArray(label_shape, ctx);
-
         net.InferArgsMap(ctx, &args_map, args_map);
-        //Initialize all parameters with uniform distribution U(-0.01, 0.01)
-        auto initializer = Xavier();
-        for (auto& arg : args_map) {
-            //arg.first is parameter name, and arg.second is the value
-            initializer(arg.first, &arg.second);
-        }
-
-
-        Optimizer *opt = OptimizerRegistry::Find("sgd");
+/*
+        args_map["fc1_w"] = NDArray(Shape(500, 4 * 4 * 50), ctx);
+        NDArray::SampleGaussian(0, 1, &args_map["fc1_w"]);
+        args_map["fc2_b"] = NDArray(Shape(10), ctx);
+        args_map["fc2_b"] = 0;
+*/
+        Optimizer* opt = OptimizerRegistry::Find("sgd");
         opt->SetParam("momentum", 0.9)
                 ->SetParam("rescale_grad", 1.0)
                 ->SetParam("clip_gradient", 10)
                 ->SetParam("lr", learning_rate)
                 ->SetParam("wd", weight_decay);
 
+        /*with data and label, executor can be generated automatically*/
         auto *exec = net.SimpleBind(ctx, args_map);
         auto arg_names = net.ListArguments();
+        aux_map = exec->aux_dict();
+        args_map = exec->arg_dict();
 
+        //Initialize all parameters with uniform distribution U(-0.01, 0.01)
+        auto xavier = Xavier();
+        for (auto& arg : args_map) {
+            //arg.first is parameter name, and arg.second is the value
+            xavier(arg.first, &arg.second);
+        }
+        // Create metrics
         Accuracy train_acc, acu_val;
         LogLoss logloss_train, logloss_val;
-
         float score = 0;
 
         for (int epoch = 0; epoch < max_epoch; ++epoch) {
+            LG << "Train Epoch: " << epoch;
             int samples = 0;
             /*reset the metric every epoch*/
             train_acc.Reset();
@@ -184,15 +192,13 @@ public :
                 samples += batch_size;
                 auto data_batch = train_iter.GetDataBatch();
                 /*use copyto to feed new data and label to the executor*/
-                auto resized = ResizeInput(data_batch.data, data_shape);
-                resized.CopyTo(&args_map["data"]);
+                ResizeInput(data_batch.data, data_shape).CopyTo(&args_map["data"]);
                 data_batch.label.CopyTo(&args_map["data_label"]);
                 NDArray::WaitAll();
 
                 // Compute gradients
                 exec->Forward(true);
                 exec->Backward();
-
                 // Update parameters
                 for (size_t i = 0; i < arg_names.size(); ++i) {
                     if (arg_names[i] == "data" || arg_names[i] == "data_label")
@@ -200,19 +206,17 @@ public :
 
                     opt->Update(i, exec->arg_arrays[i], exec->grad_arrays[i]);
                 }
-
                 NDArray::WaitAll();
                 // Update metrics
                 train_acc.Update(data_batch.label, exec->outputs[0]);
                 logloss_train.Reset();
                 logloss_train.Update(data_batch.label, exec->outputs[0]);
-                ++iter;
-
                 LG << "EPOCH: " << epoch << " ITER: " << iter
                    << " Train Accuracy: " << train_acc.Get()
                    << " Train Loss: " << logloss_train.Get();
-            }
 
+                ++iter;
+            }
             // one epoch of training is finished
             auto toc = std::chrono::system_clock::now();
             float duration = std::chrono::duration_cast<std::chrono::milliseconds>
@@ -229,9 +233,7 @@ public :
 
             while (val_iter.Next()) {
                 auto data_batch = val_iter.GetDataBatch();
-                auto resized = ResizeInput(data_batch.data, data_shape);
-
-                resized.CopyTo(&args_map["data"]);
+                ResizeInput(data_batch.data, data_shape).CopyTo(&args_map["data"]);
                 data_batch.label.CopyTo(&args_map["data_label"]);
                 NDArray::WaitAll();
 
@@ -254,18 +256,14 @@ public :
             std::string param_path = destPath / ("lenet-" + std::to_string(epoch) + ".params");
             LG << "EPOCH [" << epoch << "] Saving params to..." << param_path;
             LG << "EPOCH [" << epoch << "] Saving model  to..." << model_path;
-            SaveCheckpoint(param_path, net, exec);
+
             // saving model so in case we stopped mid training we have something to work with
-            net.Save(model_path);
+            SaveCheckpoint(param_path, model_path, net, exec);
         }
 
-        LG << "Score " << score;
-        std::cerr << "Saving the model" << std::endl;
+        LG << "Predicted score :  " << score;
         auto json = net.ToJSON();
         std::cerr << json;
-        net.Save(model_path);
-        std::cerr << "Done saving the model." << std::endl;
-
         /*cleanup*/
         delete exec;
         delete opt;

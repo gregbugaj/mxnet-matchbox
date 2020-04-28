@@ -76,7 +76,6 @@ Predictor::Predictor(const std::string &model_json_file,
         throw std::runtime_error("ImageRecordIter cannot be created");
     }*/
 
-
     // Load Synset(Labels)
     LoadSynset(synset_file);
 
@@ -199,6 +198,10 @@ void Predictor::LoadModel(const std::string &model_json_file) {
         LG << args_name;
     }
 
+    LG << "-------- Input  Arguments --------";
+    for (const std::string& name : net_.ListInputs()) {
+        LG << name;
+    }
     LG << "---------------------------";
 }
 
@@ -238,6 +241,7 @@ void Predictor::SplitParamMap(const std::map<std::string, NDArray> &paramMap,
     for (const auto &pair : paramMap) {
         std::string type = pair.first.substr(0, 4);
         std::string name = pair.first.substr(4);
+        LG << "ParamMap >>  " << type  << " = " << name;
         if (type == "arg:") {
             (*argParamInTargetContext)[name] = pair.second.Copy(targetContext);
         } else if (type == "aux:") {
@@ -340,8 +344,7 @@ void Predictor::BenchmarkScore(int num_inference_batches) {
        << " imgs/s latency:" << ms / input_shape_[0] / num_inference_batches << " ms";
 }
 
-
-void Predictor::Score(const std::string &image_file) {
+void Predictor::predict(const std::string &image_file) {
     // Load the input image
     NDArray image_data = LoadInputImage(image_file);
     LG << "Running the forward pass on model to predict the image";
@@ -353,7 +356,6 @@ void Predictor::Score(const std::string &image_file) {
      * to the arg map of the executor. The input is stored with the key "data" in the map.
      */
     double ms = ms_now();
-
     image_data.CopyTo(&args_map_["data"]);
     NDArray::WaitAll();
 
@@ -361,7 +363,6 @@ void Predictor::Score(const std::string &image_file) {
     executor_->Forward(false);
     NDArray::WaitAll();
     auto array = executor_->outputs[0].Copy(global_ctx_);
-
     /*
     * Find out the maximum accuracy and the index associated with that accuracy.
     * This is done by using the argmax operator on NDArray.
@@ -407,9 +408,7 @@ void Predictor::Score(const std::string &image_file) {
         LG << "Found, Expected, Accuracy  :: " << i << " : " << val << " = " << label << " : " << accuracy << " == "
            << best_accuracy;
     }
-
     ms = ms_now() - ms;
-
     auto args_name = net_.ListArguments();
     LG << "INFO:" << "label_name = " << args_name[args_name.size() - 1];
     LG << "INFO:" << "rgb_mean: " << "(" << rgb_mean_[0] << ", " << rgb_mean_[1]

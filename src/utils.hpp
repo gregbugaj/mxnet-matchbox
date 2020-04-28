@@ -62,13 +62,12 @@ bool setDataIter(MXDataIter *iter, const std::string &useType,
    * @param filepath
    * @param exe
    */
-void LoadCheckpoint(const std::string &filepath, Executor *exe) {
+void LoadCheckpoint(const std::string &param_path, Executor *exe) {
 
     std::cerr << "Loading the model parameters." << std::endl;
-    std::map<std::string, NDArray> params = NDArray::LoadToMap(filepath);
+    std::map<std::string, NDArray> params = NDArray::LoadToMap(param_path);
 
     for (auto &iter : params) {
-
         auto type = iter.first.substr(0, 4);
         auto name = iter.first.substr(4);
         std::cerr << "Type/name : " << type << ", " << name << std::endl;
@@ -85,22 +84,24 @@ void LoadCheckpoint(const std::string &filepath, Executor *exe) {
 }
 
 /**
- * Save current check point
- * @param filepath
- * @param net
- * @param exe
+ * Save current check point, model.py
  */
-void SaveCheckpoint(const std::string &filepath, Symbol &net, Executor *exe) {
+void SaveCheckpoint(const std::string &param_path,const std::string &model_path, Symbol &symbol, Executor *exe) {
     auto save_args = exe->arg_dict();
     /*we do not want to save the data and label*/
     save_args.erase("data");
     save_args.erase("data_label");
-
     // copy any aux array
     for (auto iter : exe->aux_dict()) {
         save_args.insert({"aux:" + iter.first, iter.second});
     }
-    NDArray::Save(filepath, save_args);
+    for (auto iter : save_args) {
+          LG <<"Saving ARG : " <<   iter.first;
+    }
+
+    NDArray::Save(param_path, save_args);
+    symbol.Save(model_path);
+    std::cerr << "Saved checkpoint to ." << std::endl;
 }
 
 #endif //LBP_MATCHBOX_UTILS_HPP

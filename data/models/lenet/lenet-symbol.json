@@ -3,188 +3,179 @@
     {
       "op": "null", 
       "name": "data", 
-      "attrs": {"__profiler_scope__": "<unk>:"}, 
       "inputs": []
     }, 
     {
       "op": "null", 
-      "name": "convolution0_weight", 
-      "attrs": {
-        "__profiler_scope__": "<unk>:", 
-        "kernel": "(5, 5)", 
-        "num_filter": "20"
-      }, 
+      "name": "conv1_w", 
       "inputs": []
     }, 
     {
       "op": "null", 
-      "name": "convolution0_bias", 
-      "attrs": {
-        "__profiler_scope__": "<unk>:", 
-        "kernel": "(5, 5)", 
-        "num_filter": "20"
-      }, 
+      "name": "conv1_b", 
       "inputs": []
     }, 
     {
       "op": "Convolution", 
-      "name": "convolution0", 
+      "name": "conv1", 
       "attrs": {
-        "__profiler_scope__": "<unk>:", 
-        "kernel": "(5, 5)", 
-        "num_filter": "20"
+        "cudnn_off": "0", 
+        "cudnn_tune": "None", 
+        "dilate": "()", 
+        "kernel": "(5,5)", 
+        "layout": "None", 
+        "no_bias": "0", 
+        "num_filter": "20", 
+        "num_group": "1", 
+        "pad": "()", 
+        "stride": "()", 
+        "workspace": "1024"
       }, 
       "inputs": [[0, 0, 0], [1, 0, 0], [2, 0, 0]]
     }, 
     {
       "op": "Activation", 
-      "name": "activation0", 
-      "attrs": {
-        "__profiler_scope__": "<unk>:", 
-        "act_type": "tanh"
-      }, 
+      "name": "tanh1", 
+      "attrs": {"act_type": "tanh"}, 
       "inputs": [[3, 0, 0]]
     }, 
     {
       "op": "Pooling", 
-      "name": "pooling0", 
+      "name": "pool1", 
       "attrs": {
-        "__profiler_scope__": "<unk>:", 
-        "kernel": "(2, 2)", 
+        "count_include_pad": "None", 
+        "cudnn_off": "0", 
+        "global_pool": "0", 
+        "kernel": "(2,2)", 
+        "layout": "None", 
+        "p_value": "None", 
+        "pad": "()", 
         "pool_type": "max", 
-        "stride": "(2, 2)"
+        "pooling_convention": "valid", 
+        "stride": "(2,2)"
       }, 
       "inputs": [[4, 0, 0]]
     }, 
     {
       "op": "null", 
-      "name": "convolution1_weight", 
-      "attrs": {
-        "__profiler_scope__": "<unk>:", 
-        "kernel": "(5, 5)", 
-        "num_filter": "50"
-      }, 
+      "name": "conv2_w", 
       "inputs": []
     }, 
     {
       "op": "null", 
-      "name": "convolution1_bias", 
-      "attrs": {
-        "__profiler_scope__": "<unk>:", 
-        "kernel": "(5, 5)", 
-        "num_filter": "50"
-      }, 
+      "name": "conv2_b", 
       "inputs": []
     }, 
     {
       "op": "Convolution", 
-      "name": "convolution1", 
+      "name": "conv2", 
       "attrs": {
-        "__profiler_scope__": "<unk>:", 
-        "kernel": "(5, 5)", 
-        "num_filter": "50"
+        "cudnn_off": "0", 
+        "cudnn_tune": "None", 
+        "dilate": "()", 
+        "kernel": "(5,5)", 
+        "layout": "None", 
+        "no_bias": "0", 
+        "num_filter": "50", 
+        "num_group": "1", 
+        "pad": "()", 
+        "stride": "()", 
+        "workspace": "1024"
       }, 
       "inputs": [[5, 0, 0], [6, 0, 0], [7, 0, 0]]
     }, 
     {
       "op": "Activation", 
-      "name": "activation1", 
-      "attrs": {
-        "__profiler_scope__": "<unk>:", 
-        "act_type": "tanh"
-      }, 
+      "name": "tanh2", 
+      "attrs": {"act_type": "tanh"}, 
       "inputs": [[8, 0, 0]]
     }, 
     {
       "op": "Pooling", 
-      "name": "pooling1", 
+      "name": "pool2", 
       "attrs": {
-        "__profiler_scope__": "<unk>:", 
-        "kernel": "(2, 2)", 
+        "count_include_pad": "None", 
+        "cudnn_off": "0", 
+        "global_pool": "0", 
+        "kernel": "(2,2)", 
+        "layout": "None", 
+        "p_value": "None", 
+        "pad": "()", 
         "pool_type": "max", 
-        "stride": "(2, 2)"
+        "pooling_convention": "valid", 
+        "stride": "(2,2)"
       }, 
       "inputs": [[9, 0, 0]]
     }, 
     {
       "op": "Flatten", 
-      "name": "flatten0", 
-      "attrs": {"__profiler_scope__": "<unk>:"}, 
+      "name": "flatten", 
       "inputs": [[10, 0, 0]]
     }, 
     {
       "op": "null", 
-      "name": "fullyconnected0_weight", 
-      "attrs": {
-        "__profiler_scope__": "<unk>:", 
-        "num_hidden": "500"
-      }, 
+      "name": "fc1_w", 
       "inputs": []
     }, 
     {
       "op": "null", 
-      "name": "fullyconnected0_bias", 
-      "attrs": {
-        "__profiler_scope__": "<unk>:", 
-        "num_hidden": "500"
-      }, 
+      "name": "fc1_b", 
       "inputs": []
     }, 
     {
       "op": "FullyConnected", 
-      "name": "fullyconnected0", 
+      "name": "fc1", 
       "attrs": {
-        "__profiler_scope__": "<unk>:", 
+        "flatten": "1", 
+        "no_bias": "0", 
         "num_hidden": "500"
       }, 
       "inputs": [[11, 0, 0], [12, 0, 0], [13, 0, 0]]
     }, 
     {
       "op": "Activation", 
-      "name": "activation2", 
-      "attrs": {
-        "__profiler_scope__": "<unk>:", 
-        "act_type": "tanh"
-      }, 
+      "name": "tanh3", 
+      "attrs": {"act_type": "tanh"}, 
       "inputs": [[14, 0, 0]]
     }, 
     {
       "op": "null", 
-      "name": "fullyconnected1_weight", 
-      "attrs": {
-        "__profiler_scope__": "<unk>:", 
-        "num_hidden": "10"
-      }, 
+      "name": "fc2_w", 
       "inputs": []
     }, 
     {
       "op": "null", 
-      "name": "fullyconnected1_bias", 
-      "attrs": {
-        "__profiler_scope__": "<unk>:", 
-        "num_hidden": "10"
-      }, 
+      "name": "fc2_b", 
       "inputs": []
     }, 
     {
       "op": "FullyConnected", 
-      "name": "fullyconnected1", 
+      "name": "fc2", 
       "attrs": {
-        "__profiler_scope__": "<unk>:", 
+        "flatten": "1", 
+        "no_bias": "0", 
         "num_hidden": "10"
       }, 
       "inputs": [[15, 0, 0], [16, 0, 0], [17, 0, 0]]
     }, 
     {
       "op": "null", 
-      "name": "softmax_label", 
-      "attrs": {"__profiler_scope__": "<unk>:"}, 
+      "name": "data_label", 
       "inputs": []
     }, 
     {
       "op": "SoftmaxOutput", 
       "name": "softmax", 
-      "attrs": {"__profiler_scope__": "<unk>:"}, 
+      "attrs": {
+        "grad_scale": "1", 
+        "ignore_label": "-1", 
+        "multi_output": "0", 
+        "normalization": "null", 
+        "out_grad": "0", 
+        "preserve_shape": "0", 
+        "smooth_alpha": "0", 
+        "use_ignore": "0"
+      }, 
       "inputs": [[18, 0, 0], [19, 0, 0]]
     }
   ], 

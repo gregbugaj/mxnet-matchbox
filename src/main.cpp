@@ -13,8 +13,6 @@ namespace fs = std::experimental::filesystem;
 using namespace mxnet::cpp;
 using namespace std::chrono;
 
-int iterators_mxnet();
-
 void train();
 
 int evaluate();
@@ -53,28 +51,32 @@ std::vector<T> createVectorFromString(const std::string &input_string) {
     return dst_vec;
 }
 
-
-int main(int argc, char const *argv[]) {
+void version()
+{
     int version;
     MXGetVersion(&version);
-
     LG << "Commit #: " << GIT_COMMIT_HASH;
     LG << "MxNet     version : " << version;
     LG << "Leptonica version : " << getLeptonicaVersion();
     LG << "OpenCV    version : " << CV_VERSION;
     LG << "MxNet Base";
+}
 
-    evaluate();
+int main(int argc, char const *argv[]) {
+    version();
+//    evaluate();
 
-//    train();
+    train();
     return 0;
 }
 
 int evaluate() {
 
     // /home/greg/dev/rms/matchbox/data/models/py-mlp/
-//    auto modelRoot = getDataDirectory({"models", "lenet"});
-    auto modelRoot = getDataDirectory({"models", "py-mlp"});
+    auto modelRoot = getDataDirectory({"models", "lenet"});
+
+//auto modelRoot = getDataDirectory({"models", "py-mlp"});
+
     auto testRoot = getDataDirectory({"mnist", "test", "standard"});
     auto dataRoot = getDataDirectory({"mnist", "standard"});
 
@@ -90,7 +92,7 @@ int evaluate() {
 
         std::string synset_file = dataRoot / "synset.txt";
         std::string model_file_json = modelRoot / "lenet-symbol.json";
-        std::string model_file_params = modelRoot / "lenet-0006.params";
+        std::string model_file_params = modelRoot / "lenet-0.params";
 //        std::string imageFile = testRoot / "black/2_img_1.jpg";
 //        std::string imageFile = testRoot / "black/3_img_106.jpg";
         std::string imageFile = testRoot / "black/8_img_110.jpg";
@@ -137,7 +139,7 @@ int evaluate() {
         if (benchmark) {
             predict.BenchmarkScore(num_inference_batches);
         } else {
-            predict.Score(imageFile);
+            predict.predict(imageFile);
         }
     } catch (dmlc::Error &err) {
         LG << "Status: FAIL " << err.what();
@@ -149,39 +151,7 @@ int evaluate() {
 
 void train() {
     Lenet trainer;
-    trainer.train(100);
-}
-
-/*!
- * Dump existing data iterators
- * @return
- */
-int iterators_mxnet() {
-    mx_uint num_data_iter_creators;
-    DataIterCreator *data_iter_creators = nullptr;
-
-    int r = MXListDataIters(&num_data_iter_creators, &data_iter_creators);
-    CHECK_EQ(r, 0);
-    LG << "num_data_iter_creators = " << num_data_iter_creators;
-    //output: num_data_iter_creators = 8
-
-    const char *name;
-    const char *description;
-    mx_uint num_args;
-    const char **arg_names;
-    const char **arg_type_infos;
-    const char **arg_descriptions;
-
-    for (mx_uint i = 0; i < num_data_iter_creators; i++) {
-        r = MXDataIterGetIterInfo(data_iter_creators[i], &name, &description,
-                                  &num_args, &arg_names, &arg_type_infos,
-                                  &arg_descriptions);
-        CHECK_EQ(r, 0);
-        LG << " i: " << i << ", name: " << name;
-    }
-
-    MXNotifyShutdown();
-    return 0;
+    trainer.train(1);
 }
 
 
