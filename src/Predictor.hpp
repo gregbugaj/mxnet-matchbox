@@ -71,11 +71,6 @@ private:
 
     void InitParameters();
 
-    inline bool FileExists(const std::string &name) {
-        std::ifstream handle(name.c_str());
-        return handle.good();
-    }
-
     int GetDataLayerType();
 
     std::map<std::string, NDArray> args_map_;

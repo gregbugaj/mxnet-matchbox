@@ -8,11 +8,19 @@
     {
       "op": "null", 
       "name": "conv1_w", 
+      "attrs": {
+        "kernel": "(5, 5)", 
+        "num_filter": "20"
+      }, 
       "inputs": []
     }, 
     {
       "op": "null", 
       "name": "conv1_b", 
+      "attrs": {
+        "kernel": "(5, 5)", 
+        "num_filter": "20"
+      }, 
       "inputs": []
     }, 
     {
@@ -59,11 +67,19 @@
     {
       "op": "null", 
       "name": "conv2_w", 
+      "attrs": {
+        "kernel": "(5, 5)", 
+        "num_filter": "50"
+      }, 
       "inputs": []
     }, 
     {
       "op": "null", 
       "name": "conv2_b", 
+      "attrs": {
+        "kernel": "(5, 5)", 
+        "num_filter": "50"
+      }, 
       "inputs": []
     }, 
     {
@@ -115,11 +131,13 @@
     {
       "op": "null", 
       "name": "fc1_w", 
+      "attrs": {"num_hidden": "500"}, 
       "inputs": []
     }, 
     {
       "op": "null", 
       "name": "fc1_b", 
+      "attrs": {"num_hidden": "500"}, 
       "inputs": []
     }, 
     {
@@ -141,6 +159,7 @@
     {
       "op": "null", 
       "name": "fc2_w", 
+      "attrs": {"num_hidden": "10"}, 
       "inputs": []
     }, 
     {
@@ -187,13 +206,11 @@
     3, 
     4, 
     5, 
-    6, 
     7, 
     8, 
     9, 
     10, 
     11, 
-    12, 
     13, 
     14, 
     15, 
@@ -202,8 +219,10 @@
     18, 
     19, 
     20, 
-    21
+    21, 
+    22, 
+    23
   ], 
   "heads": [[20, 0, 0]], 
-  "attrs": {"mxnet_version": ["int", 20000]}
+  "attrs": {"mxnet_version": ["int", 10500]}
 }

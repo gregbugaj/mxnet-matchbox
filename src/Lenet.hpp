@@ -33,7 +33,7 @@ public :
         Symbol fc1_w("fc1_w"), fc1_b("fc1_b");
         Symbol fc2_w("fc2_w"), fc2_b("fc2_b");
 
-      /*  conv1_w.SetAttribute("kernel", "(5, 5)");
+        conv1_w.SetAttribute("kernel", "(5, 5)");
         conv1_w.SetAttribute("num_filter", "20");
 
         conv1_b.SetAttribute("kernel", "(5, 5)");
@@ -50,7 +50,7 @@ public :
 
         fc2_w.SetAttribute("num_hidden", "10");
         fc2_w.SetAttribute("num_hidden", "10");
-*/
+
         // first conv
         Symbol conv1 = Convolution("conv1", data, conv1_w, conv1_b, Shape(5, 5), 20);
         Symbol tanh1 = Activation("tanh1", conv1, ActivationActType::kTanh);
@@ -108,6 +108,7 @@ public :
                 "t10k-images-idx3-ubyte",
                 "t10k-labels-idx1-ubyte"
         };
+
         std::vector<std::string> data_files;
         for (auto val : filenames) {
             std::string file = path / val;
@@ -252,8 +253,11 @@ public :
 
             LG << "EPOCH [" << epoch << "] Val Accuracy: " << acu_val.Get();
             LG << "EPOCH [" << epoch << "] Val LogLoss: " << logloss_val.Get();
-            /*save the parameters*/
-            std::string param_path = destPath / ("lenet-" + std::to_string(epoch) + ".params");
+
+            /*save the parameters */
+            std::string pid(std::to_string(epoch + 1));
+            pid.insert(0, 4 - pid.length(), '0');
+            std::string param_path = destPath / ("lenet-" + pid + ".params");
             LG << "EPOCH [" << epoch << "] Saving params to..." << param_path;
             LG << "EPOCH [" << epoch << "] Saving model  to..." << model_path;
 

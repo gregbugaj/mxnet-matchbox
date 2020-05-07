@@ -3,6 +3,7 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 #include "Predictor.hpp"
+#include "utils.hpp"
 
 double ms_now() {
     auto timePoint = std::chrono::high_resolution_clock::now().time_since_epoch();
@@ -153,11 +154,9 @@ NDArray Predictor::LoadInputImage(const std::string &image_file) {
         throw std::runtime_error("Image file does not exist");
     }
     LG << "Loading the image " << image_file << std::endl;
-
     cv::Mat mat = cv::imread(image_file, cv::IMREAD_GRAYSCALE);
     mat.convertTo(mat, CV_32F);
 //    mat.convertTo(mat, CV_32F, 1.f/255);
-
     // resize pictures to (28, 28) according to the pretrained model
     int channels = input_shape_[1];
     int height = input_shape_[2];
@@ -199,9 +198,9 @@ void Predictor::LoadModel(const std::string &model_json_file) {
     }
 
     LG << "-------- Input  Arguments --------";
-    for (const std::string& name : net_.ListInputs()) {
+/*    for (const std::string& name : net_.ListInputs()) {
         LG << name;
-    }
+    }*/
     LG << "---------------------------";
 }
 
@@ -226,7 +225,8 @@ void Predictor::LoadParameters(const std::string &model_parameters_file) {
     } else {
         SplitParamMap(parameters, &args_map_, &aux_map_, global_ctx_);
     }
-    /*WaitAll is need when we copy data between GPU and the main memory*/
+
+    /*WaitAll is needed when we copy data between GPU and the main memory*/
     NDArray::WaitAll();
 }
 

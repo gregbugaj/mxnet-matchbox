@@ -15,4 +15,10 @@ using namespace std::string_literals;
 /// \return
 fs::path getDataDirectory(std::initializer_list<std::string_view> folders);
 
+/// Check if file exists
+/// \param filename
+/// \return
+bool FileExists(const std::string &filename);
+
+
 #endif //MATCHBOX_FILEUTIL_HPP
