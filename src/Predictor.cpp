@@ -395,8 +395,8 @@ void Predictor::predict(const std::string &image_file) {
         auto val = pred_data[i];  // predicted
         auto label = label_data[i]; // expected
 
-        auto best_idx = predicted.At(i);
-        auto best_accuracy = array.At(0, best_idx);
+        best_idx = predicted.At(i);
+        best_accuracy = array.At(0, best_idx);
         LG << "best_idx, best_accuracy = " << best_idx << " : " << best_accuracy;
         auto accuracy = array.At(0, i);
         LG << "Found, Expected, Accuracy  :: " << i << " : " << val << " = " << label << " : " << accuracy << " == "

@@ -9,7 +9,6 @@
 
 using namespace mxnet::cpp;
 
-
 bool check_datafiles(const std::vector<std::string> &data_files);
 
 bool

@@ -8,6 +8,7 @@
 #include "Trainer.hpp"
 #include "fileutil.hpp"
 #include "Predictor.hpp"
+#include "vectorutils.hpp"
 
 namespace fs = std::experimental::filesystem;
 using namespace mxnet::cpp;
@@ -24,32 +25,6 @@ static mxnet::cpp::Context global_ctx(mxnet::cpp::kCPU, 0);
 // static Context global_ctx(mxnet::cpp::kCPU,0);
 
 
-/*
- * Convert the input string of number into the vector.
- */
-template<typename T>
-std::vector<T> createVectorFromString(const std::string &input_string) {
-    std::vector<T> dst_vec;
-    char *p_next;
-    T elem;
-    bool bFloat = std::is_same<T, float>::value;
-    if (!bFloat) {
-        elem = strtol(input_string.c_str(), &p_next, 10);
-    } else {
-        elem = strtof(input_string.c_str(), &p_next);
-    }
-
-    dst_vec.push_back(elem);
-    while (*p_next) {
-        if (!bFloat) {
-            elem = strtol(p_next, &p_next, 10);
-        } else {
-            elem = strtof(p_next, &p_next);
-        }
-        dst_vec.push_back(elem);
-    }
-    return dst_vec;
-}
 
 void version() {
     int version;
