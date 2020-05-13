@@ -52,7 +52,7 @@ configure_file(
 
 # Source files
 
-set(SOURCE_FILES main.cpp Lenet.hpp fileutil.cpp fileutil.hpp utils.cpp utils.hpp Predictor.cpp Predictor.hpp)
+set(SOURCE_FILES main.cpp Trainer.hpp fileutil.cpp fileutil.hpp utils.cpp utils.hpp Predictor.cpp Predictor.hpp)
 
 # Build as executable
 add_executable(${TARGET_NAME} ${SOURCE_FILES})

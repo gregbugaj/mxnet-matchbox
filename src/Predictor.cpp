@@ -71,12 +71,6 @@ Predictor::Predictor(const std::string &model_json_file,
         global_ctx_ = Context::gpu();
     }
 
-/*    // initilize data iterator
-    if (!benchmark_ && !CreateImageRecordIter()) {
-        LG << "Error: failed to create ImageRecordIter";
-        throw std::runtime_error("ImageRecordIter cannot be created");
-    }*/
-
     // Load Synset(Labels)
     LoadSynset(synset_file);
 
@@ -119,8 +113,8 @@ Predictor::Predictor(const std::string &model_json_file,
     // Create an executor after binding the model to input parameters.
     executor_ = new Executor(net_, global_ctx_, arg_arrays, grad_arrays, grad_reqs, aux_arrays);
 
-    for(const auto & layer_name:net_.ListOutputs()){
-        LG<<layer_name;
+    for (const auto &layer_name:net_.ListOutputs()) {
+        LG << layer_name;
     }
 
     /*bind the executor
@@ -187,20 +181,20 @@ void Predictor::LoadModel(const std::string &model_json_file) {
         net_ = net_.GetBackendSymbol("TensorRT");
     }
 
-    LG << "-------- Net outputs --------";
-    for (const auto &layer_name : net_.ListOutputs()) {
-        LG << layer_name;
-    }
-
     LG << "-------- Net Arguments --------";
     for (const auto &args_name : net_.ListArguments()) {
         LG << args_name;
     }
 
+    LG << "-------- Net outputs --------";
+    for (const auto &layer_name : net_.ListOutputs()) {
+        LG << layer_name;
+    }
+
     LG << "-------- Input  Arguments --------";
-/*    for (const std::string& name : net_.ListInputs()) {
+    for (const std::string &name : net_.ListInputs()) {
         LG << name;
-    }*/
+    }
     LG << "---------------------------";
 }
 
@@ -241,7 +235,7 @@ void Predictor::SplitParamMap(const std::map<std::string, NDArray> &paramMap,
     for (const auto &pair : paramMap) {
         std::string type = pair.first.substr(0, 4);
         std::string name = pair.first.substr(4);
-        LG << "ParamMap >>  " << type  << " = " << name;
+        LG << "ParamMap >>  " << type << " = " << name;
         if (type == "arg:") {
             (*argParamInTargetContext)[name] = pair.second.Copy(targetContext);
         } else if (type == "aux:") {

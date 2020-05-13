@@ -1,6 +1,6 @@
 
-#ifndef MATCHBOX_LENET_HPP
-#define MATCHBOX_LENET_HPP
+#ifndef MATCHBOX_TRAINER_HPP
+#define MATCHBOX_TRAINER_HPP
 
 #include <fstream>
 #include <map>
@@ -15,13 +15,18 @@ using namespace mxnet::cpp;
 using mxnet::cpp::Symbol;
 
 // https://github.com/apache/incubator-mxnet/blob/master/cpp-package/example/lenet.cpp
-class Lenet {
+class Trainer {
 
 public :
-    Lenet() {
+    Trainer() {
         // noop
     }
 
+    /**
+     * Lenet symbol
+     * @param num_classes
+     * @return
+     */
     Symbol symbol(int num_classes = 10) {
         /*define the symbolic net*/
         Symbol data = Symbol::Variable("data");
@@ -70,11 +75,9 @@ public :
         Symbol fc2 = FullyConnected("fc2", tanh3, fc2_w, fc2_b, num_classes);
         // loss
         Symbol lenet = SoftmaxOutput("softmax", fc2, label);
-
         for (auto s : lenet.ListArguments()) {
             LG << s;
         }
-
         return lenet;
     }
 
@@ -143,19 +146,14 @@ public :
         /*args_map and aux_map is used for parameters' saving*/
         std::map<std::string, NDArray> args_map;
         std::map<std::string, NDArray> aux_map;
-        const Shape data_shape  = Shape(batch_size, 1, H, W),
-                    label_shape = Shape(batch_size);
+        const Shape data_shape = Shape(batch_size, 1, H, W),
+                label_shape = Shape(batch_size);
 
         args_map["data"] = NDArray(data_shape, ctx);
         args_map["data_label"] = NDArray(label_shape, ctx);
         net.InferArgsMap(ctx, &args_map, args_map);
-/*
-        args_map["fc1_w"] = NDArray(Shape(500, 4 * 4 * 50), ctx);
-        NDArray::SampleGaussian(0, 1, &args_map["fc1_w"]);
-        args_map["fc2_b"] = NDArray(Shape(10), ctx);
-        args_map["fc2_b"] = 0;
-*/
-        Optimizer* opt = OptimizerRegistry::Find("sgd");
+
+        Optimizer *opt = OptimizerRegistry::Find("sgd");
         opt->SetParam("momentum", 0.9)
                 ->SetParam("rescale_grad", 1.0)
                 ->SetParam("clip_gradient", 10)
@@ -170,7 +168,7 @@ public :
 
         //Initialize all parameters with uniform distribution U(-0.01, 0.01)
         auto xavier = Xavier();
-        for (auto& arg : args_map) {
+        for (auto &arg : args_map) {
             //arg.first is parameter name, and arg.second is the value
             xavier(arg.first, &arg.second);
         }
@@ -275,4 +273,4 @@ public :
     }
 };
 
-#endif //MATCHBOX_LENET_HPP
+#endif //MATCHBOX_TRAINER_HPP

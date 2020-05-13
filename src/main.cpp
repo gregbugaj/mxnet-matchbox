@@ -5,7 +5,7 @@
 #include <leptonica/allheaders.h>
 #include <opencv2/opencv.hpp>
 #include <version.h>
-#include "Lenet.hpp"
+#include "Trainer.hpp"
 #include "fileutil.hpp"
 #include "Predictor.hpp"
 
@@ -63,7 +63,7 @@ void version() {
 
 int main(int argc, char const *argv[]) {
     version();
-     evaluate();
+    evaluate();
 
 //    train();
     return 0;
@@ -71,9 +71,8 @@ int main(int argc, char const *argv[]) {
 
 int evaluate() {
 
-    auto modelRoot = getDataDirectory({"models", "lenet"});
-//    auto modelRoot = getDataDirectory({"models", "py-mlp"});
-
+//    auto modelRoot = getDataDirectory({"models", "lenet"});
+    auto modelRoot = getDataDirectory({"models", "py-mlp"});
     auto testRoot = getDataDirectory({"mnist", "test", "standard"});
     auto dataRoot = getDataDirectory({"mnist", "standard"});
 
@@ -81,22 +80,18 @@ int evaluate() {
     try {
 
         /*
-               std::string synset_file = dataRoot / "synset.txt";
-              std::string model_file_json = modelRoot / "lenet-symbol.json";
-              std::string model_file_params = modelRoot / "lenet-99.params";
-              std::string imageFile = testRoot / "black/3_img_106.jpg";
+            std::string synset_file = dataRoot / "synset.txt";
+            std::string model_file_json = modelRoot / "lenet-symbol.json";
+            std::string model_file_params = modelRoot / "lenet-99.params";
+            std::string imageFile = testRoot / "black/3_img_106.jpg";
          */
         std::string synset_file = dataRoot / "synset.txt";
         std::string model_file_json = modelRoot / "lenet-symbol.json";
         std::string model_file_params = modelRoot / "lenet-0001.params";
-//        std::string imageFile = testRoot / "black/2_img_1.jpg";
-        std::string imageFile = testRoot / "black/3_img_106.jpg";
+        std::string imageFile = testRoot / "black/2_img_1.jpg";
+//        std::string imageFile = testRoot / "black/3_img_106.jpg";
 //        std::string imageFile = testRoot / "black/8_img_110.jpg";
 
-        // Generated via Python
-        /*std::string model_file_json = "/home/gbugaj/dev/3rdparty/mxnet/example/image-classification/mnist_py-symbol.json";
-        std::string model_file_params = "/home/gbugaj/dev/3rdparty/mxnet/example/image-classification/mnist_py-0015.params";
-        */
         std::string input_rgb_mean("0 0 0");
         std::string input_rgb_std("1 1 1");
 
@@ -146,7 +141,7 @@ int evaluate() {
 }
 
 void train() {
-    Lenet trainer;
+    Trainer trainer;
     trainer.train(1);
 }
 

@@ -8,6 +8,6 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/src)
 
 #SET(ENV{MXNET_ROOT} "/home/gbugaj/dev/3rdparty/mxnet")
-SET(ENV{MXNET_ROOT} "/home/greg/dev/3rdparty/mxnet")
+SET(ENV{MXNET_ROOT} "/home/gbugaj/dev/3rdparty/mxnet")
 
 add_subdirectory(src)

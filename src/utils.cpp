@@ -55,11 +55,11 @@ bool setDataIter(MXDataIter *iter, const std::string &useType,
 /**
    * Load checkpoint
    *
+   * @ref https://beta.mxnet.io/_modules/mxnet/model.html#load_checkpoint
    * @param filepath
    * @param exe
    */
 void LoadCheckpoint(const std::string &param_path, Executor *exe) {
-
     std::cerr << "Loading the model parameters." << std::endl;
     std::map<std::string, NDArray> params;
     NDArray::Load(param_path, 0, &params);
@@ -81,10 +81,56 @@ void LoadCheckpoint(const std::string &param_path, Executor *exe) {
 
 /**
  * Save current check point, model.py
+ * ./cpp-package/example/charRNN.cpp
+ * @ref https://beta.mxnet.io/_modules/mxnet/model.html#save_checkpoint
  */
-void SaveCheckpoint(const std::string &param_path,const std::string &model_path, Symbol &symbol, Executor *exe) {
-    auto save_args = exe->arg_dict();
+void SaveCheckpoint(const std::string &param_path, const std::string &model_path, Symbol &symbol, Executor *exe) {
+    std::map<std::string, NDArray> params;
+
+    auto arg_dict = exe->arg_dict();
     /*we do not want to save the data and label*/
+    arg_dict.erase("data");
+    arg_dict.erase("data_label");
+
+    for (auto iter : arg_dict) {
+        params.insert({"arg:" + iter.first, iter.second});
+    }
+
+    for (auto iter : exe->aux_dict()) {
+        params.insert({"aux:" + iter.first, iter.second});
+    }
+
+    NDArray::Save(param_path, params);
+    for (auto &iter : params) {
+        LG << "Saving ARGAA : " << iter.first;
+    }
+
+
+    /*
+         std::map<std::string, NDArray> params;
+    for (auto iter : exe->arg_dict())
+        if (iter.first.find("_init_") == std::string::npos
+            && iter.first.rfind("data") != iter.first.length() - 4
+            && iter.first.rfind("data_label") != iter.first.length() - 10) {
+            params.insert({"arg:" + iter.first, iter.second});
+        }
+
+    for (auto iter : exe->aux_dict()) {
+        params.insert({"aux:" + iter.first, iter.second});
+    }
+
+    NDArray::Save(param_path, params);
+    for (auto &iter : params) {
+        LG << "Saving ARGAA : " << iter.first;
+    }
+     */
+
+    /*
+    symbol.Save(model_path);
+    std::cerr << "Saved checkpoint to ." << std::endl;
+
+    auto save_args = exe->arg_dict();
+    /we do not want to save the data and label/
     save_args.erase("data");
     save_args.erase("data_label");
     // copy any aux array
@@ -92,12 +138,12 @@ void SaveCheckpoint(const std::string &param_path,const std::string &model_path,
         save_args.insert({"aux:" + iter.first, iter.second});
     }
     for (auto &iter : save_args) {
-          LG <<"Saving ARG : " <<   iter.first;
+          LG <<"Saving ARGBB : " <<   iter.first;
     }
-
     NDArray::Save(param_path, save_args);
     symbol.Save(model_path);
     std::cerr << "Saved checkpoint to ." << std::endl;
+    */
 }
 
 #endif //LBP_MATCHBOX_UTILS_HPP
