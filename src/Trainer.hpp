@@ -8,6 +8,7 @@
 #include <vector>
 #include <cstdlib>
 #include <mxnet-cpp/MxNetCpp.h>
+#include <dataiter/mnist/MnistDataSetIterator.hpp>
 #include "utils.hpp"
 #include "fileutil.hpp"
 
@@ -103,6 +104,7 @@ public :
         float learning_rate = 1e-4;
         float weight_decay = 1e-4;
 
+        MnistDataSetIterator train_iter_ds = MnistDataSetIterator(nullptr, 64);
         auto path = getDataDirectory({"mnist", "standard"});
         std::cout << "path  : " << path;
         std::vector<std::string> filenames = {

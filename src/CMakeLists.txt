@@ -52,7 +52,7 @@ configure_file(
 
 # Source files
 
-set(SOURCE_FILES main.cpp Trainer.hpp fileutil.cpp fileutil.hpp utils.cpp utils.hpp Predictor.cpp Predictor.hpp vectorutils.hpp)
+set(SOURCE_FILES main.cpp Trainer.hpp fileutil.cpp fileutil.hpp utils.cpp utils.hpp Predictor.cpp Predictor.hpp vectorutils.hpp dataset/DataSetIterator.cpp dataset/DataSetIterator.hpp dataset/mnist/MnistDataSetIterator.cpp dataset/mnist/MnistDataSetIterator.hpp dataset/synthetic/SyntheticDataSetIterator.cpp dataset/synthetic/SyntheticDataSetIterator.hpp dataset/recordio/RecordIoDataSetIterator.cpp dataset/recordio/RecordIoDataSetIterator.hpp)
 
 # Build as executable
 add_executable(${TARGET_NAME} ${SOURCE_FILES})
