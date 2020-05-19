@@ -5,6 +5,7 @@
 #include <leptonica/allheaders.h>
 #include <opencv2/opencv.hpp>
 #include <version.h>
+#include <symbol/LenetSymbol.hpp>
 #include "Trainer.hpp"
 #include "fileutil.hpp"
 #include "Predictor.hpp"
@@ -37,10 +38,13 @@ void version() {
 }
 
 int main(int argc, char const *argv[]) {
+
+    /*
     version();
     evaluate();
-
-//    train();
+*/
+    train();
+//    evaluate();
     return 0;
 }
 
@@ -100,7 +104,6 @@ int evaluate() {
         Predictor predict(model_file_json, model_file_params, synset_file, input_data_shape, use_gpu, enable_tensorrt,
                           data_nthreads, data_layer_type, rgb_mean, rgb_std, shuffle_chunk_seed,
                           seed, benchmark);
-
         benchmark = false;
         if (benchmark) {
             predict.BenchmarkScore(num_inference_batches);
@@ -115,9 +118,43 @@ int evaluate() {
     return 0;
 }
 
+std::tuple<int, Context> getBatchAndContext(int batch_size) {
+    // Determine context
+    auto ctx = Context::cpu();
+    int num_gpu;
+    MXGetGPUCount(&num_gpu);
+#if !MXNET_USE_CPU
+    if (num_gpu > 0) {
+        ctx = Context::gpu();
+        batch_size = 256;
+    }
+#endif
+    return {batch_size, ctx};
+}
+
 void train() {
+    // Data
+    auto tuple = getBatchAndContext(64);
+    auto batch_size = std::get<int>(tuple);
+    auto ctx = std::get<Context>(tuple);
+
+    auto path = getDataDirectory({"mnist", "standard"});
+    auto destPath = getDataDirectory({"models", "lenet"});
+
+    auto trainIterDs = MnistDataSetIterator(path / "train-images-idx3-ubyte",
+                                            path / "train-labels-idx1-ubyte", batch_size, false, 0);
+    auto validationIterDs = MnistDataSetIterator(path / "t10k-images-idx3-ubyte",
+                                                 path / "t10k-labels-idx1-ubyte", batch_size, false, 0);
+
+    auto train_iter = trainIterDs.getMXDataIter();
+    auto validation_iter = validationIterDs.getMXDataIter();
+
+    // Network architecture
+    LenetSymbol lenet;
+    auto net = lenet.symbol(10);
+
     Trainer trainer;
-    trainer.train(1);
+    trainer.train(ctx, net, train_iter, validation_iter, 1, Shape(batch_size, 1, 28, 28), destPath, "lenet");
 }
 
 

@@ -96,31 +96,13 @@ Predictor::Predictor(const std::string &model_json_file,
     args_map_["data"] = NDArray(input_shape_, global_ctx_, false, dtype);
     args_map_["data_label"] = NDArray(label_shape, global_ctx_, false);
 
-    std::vector<NDArray> arg_arrays;
-    std::vector<NDArray> grad_arrays;
-    std::vector<OpReqType> grad_reqs;
-    std::vector<NDArray> aux_arrays;
-
-    // infer and create ndarrays according to the given input ndarrays.
-    net_.InferExecutorArrays(global_ctx_, &arg_arrays, &grad_arrays, &grad_reqs,
-                             &aux_arrays, args_map_, std::map<std::string, NDArray>(),
-                             std::map<std::string, OpReqType>(), aux_map_);
-
-    for (auto &grad : grad_reqs) {
-        grad = OpReqType::kNullOp;
-    }
-
-    // Create an executor after binding the model to input parameters.
-    executor_ = new Executor(net_, global_ctx_, arg_arrays, grad_arrays, grad_reqs, aux_arrays);
+    /*bind the executor */
+    executor_ = net_.SimpleBind(global_ctx_, args_map_, std::map<std::string, NDArray>(),
+                                std::map<std::string, OpReqType>(), aux_map_);
 
     for (const auto &layer_name:net_.ListOutputs()) {
         LG << layer_name;
     }
-
-    /*bind the executor
-    executor_ = net_.SimpleBind(global_ctx_, args_map_, std::map<std::string, NDArray>(),
-                              std::map<std::string, OpReqType>(), aux_map_);
-*/
 }
 
 /*

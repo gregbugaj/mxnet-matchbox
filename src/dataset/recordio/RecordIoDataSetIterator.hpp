@@ -1,7 +1,7 @@
 #ifndef MATCHBOX_RECORDIODATASETITERATOR_HPP
 #define MATCHBOX_RECORDIODATASETITERATOR_HPP
 
-#include <dataiter/DataSetIterator.hpp>
+#include <dataset/DataSetIterator.hpp>
 
 class RecordIoDataSetIterator : public DataSetIterator {
 

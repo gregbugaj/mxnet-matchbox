@@ -27,4 +27,5 @@ void LoadCheckpoint(const std::string &param_path, Executor *exe);
  */
 void SaveCheckpoint(const std::string &param_path, const std::string &model_path, Symbol &symbol, Executor *exe);
 
+
 #endif //LBP_MATCHBOX_UTILS_HPP

@@ -1,7 +1,7 @@
 #ifndef MATCHBOX_SYNTHETICDATASETITERATOR_HPP
 #define MATCHBOX_SYNTHETICDATASETITERATOR_HPP
 
-#include <dataiter/DataSetIterator.hpp>
+#include <dataset/DataSetIterator.hpp>
 
 class SyntheticDataSetIterator : public DataSetIterator {
 

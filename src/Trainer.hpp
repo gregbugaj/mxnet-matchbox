@@ -1,4 +1,3 @@
-
 #ifndef MATCHBOX_TRAINER_HPP
 #define MATCHBOX_TRAINER_HPP
 
@@ -8,14 +7,13 @@
 #include <vector>
 #include <cstdlib>
 #include <mxnet-cpp/MxNetCpp.h>
-#include <dataiter/mnist/MnistDataSetIterator.hpp>
+#include <dataset/mnist/MnistDataSetIterator.hpp>
 #include "utils.hpp"
 #include "fileutil.hpp"
 
 using namespace mxnet::cpp;
 using mxnet::cpp::Symbol;
 
-// https://github.com/apache/incubator-mxnet/blob/master/cpp-package/example/lenet.cpp
 class Trainer {
 
 public :
@@ -23,133 +21,58 @@ public :
         // noop
     }
 
-    /**
-     * Lenet symbol
-     * @param num_classes
-     * @return
-     */
-    Symbol symbol(int num_classes = 10) {
-        /*define the symbolic net*/
-        Symbol data = Symbol::Variable("data");
-        Symbol label = Symbol::Variable("data_label");
+    NDArray ResizeInput(NDArray data, const Shape &new_shape) {
+        int channels = new_shape[1];
+        int height = new_shape[2];
+        int width = new_shape[3];
 
-        Symbol conv1_w("conv1_w"), conv1_b("conv1_b");
-        Symbol conv2_w("conv2_w"), conv2_b("conv2_b");
-        Symbol conv3_w("conv3_w"), conv3_b("conv3_b");
-        Symbol fc1_w("fc1_w"), fc1_b("fc1_b");
-        Symbol fc2_w("fc2_w"), fc2_b("fc2_b");
-
-        conv1_w.SetAttribute("kernel", "(5, 5)");
-        conv1_w.SetAttribute("num_filter", "20");
-
-        conv1_b.SetAttribute("kernel", "(5, 5)");
-        conv1_b.SetAttribute("num_filter", "20");
-
-        conv2_w.SetAttribute("kernel", "(5, 5)");
-        conv2_w.SetAttribute("num_filter", "50");
-
-        conv2_b.SetAttribute("kernel", "(5, 5)");
-        conv2_b.SetAttribute("num_filter", "50");
-
-        fc1_w.SetAttribute("num_hidden", "500");
-        fc1_b.SetAttribute("num_hidden", "500");
-
-        fc2_w.SetAttribute("num_hidden", "10");
-        fc2_w.SetAttribute("num_hidden", "10");
-
-        // first conv
-        Symbol conv1 = Convolution("conv1", data, conv1_w, conv1_b, Shape(5, 5), 20);
-        Symbol tanh1 = Activation("tanh1", conv1, ActivationActType::kTanh);
-        Symbol pool1 = Pooling("pool1", tanh1, Shape(2, 2), PoolingPoolType::kMax,
-                               false, false, PoolingPoolingConvention::kValid, Shape(2, 2));
-        // second conv
-        Symbol conv2 = Convolution("conv2", pool1, conv2_w, conv2_b, Shape(5, 5), 50);
-        Symbol tanh2 = Activation("tanh2", conv2, ActivationActType::kTanh);
-        Symbol pool2 = Pooling("pool2", tanh2, Shape(2, 2), PoolingPoolType::kMax,
-                               false, false, PoolingPoolingConvention::kValid, Shape(2, 2));
-
-        // first fullc
-        Symbol flatten = Flatten("flatten", pool2);
-        Symbol fc1 = FullyConnected("fc1", flatten, fc1_w, fc1_b, 500);
-        Symbol tanh3 = Activation("tanh3", fc1, ActivationActType::kTanh);
-        // second fullc
-        Symbol fc2 = FullyConnected("fc2", tanh3, fc2_w, fc2_b, num_classes);
-        // loss
-        Symbol lenet = SoftmaxOutput("softmax", fc2, label);
-        for (auto s : lenet.ListArguments()) {
-            LG << s;
-        }
-        return lenet;
-    }
-
-    NDArray ResizeInput(NDArray data, const Shape new_shape) {
-        NDArray pic = data.Reshape(Shape(0, 1, 28, 28));
+        NDArray pic = data.Reshape(Shape(0, channels, height, width));
         NDArray output;
         Operator("_contrib_BilinearResize2D")
-                .SetParam("height", new_shape[2])
-                .SetParam("width", new_shape[3])
+                .SetParam("height", height)
+                .SetParam("width", width)
                         (pic).Invoke(output);
         return output;
     }
 
-    /// Train the network for max number of epochs
-    /// \param max_epoch
-    void train(int max_epoch = 10) {
-        LG << "Training";
-        /*setup basic configs*/
-        int batch_size = 64;
-        int W = 28;
-        int H = 28;
+    /**
+     * Train the network for max number of epochs
+     *
+     * @param net
+     * @param max_epoch
+     */
+    void
+    train(Context ctx, Symbol net, MXDataIter &train_iter, MXDataIter &validation_iter, int max_epoch,
+          Shape input_shape, fs::path &destPath, std::string prefix) {
 
+        int batch_size = input_shape[0];
+        int channels = input_shape[1];
+        int height = input_shape[2];
+        int width = input_shape[3];
+
+        LG << "---------- Training ----------";
+        LG << "ctx : " << ctx.GetDeviceType();
+        LG << "max_epoch : " << max_epoch;
+        LG << "shape : " << input_shape;
+        LG << "batch_size : " << batch_size;
+        LG << "channels : " << channels;
+        LG << "width : " << width;
+        LG << "height : " << height;
+        LG << "destPath : " << destPath;
+        LG << "prefix : " << prefix;
+
+        /*
+        if (true)
+            return;
+ */
         float learning_rate = 1e-4;
         float weight_decay = 1e-4;
-
-        MnistDataSetIterator train_iter_ds = MnistDataSetIterator(nullptr, 64);
-        auto path = getDataDirectory({"mnist", "standard"});
-        std::cout << "path  : " << path;
-        std::vector<std::string> filenames = {
-                "train-images-idx3-ubyte",
-                "train-labels-idx1-ubyte",
-                "t10k-images-idx3-ubyte",
-                "t10k-labels-idx1-ubyte"
-        };
-
-        std::vector<std::string> data_files;
-        for (auto val : filenames) {
-            std::string file = path / val;
-            data_files.push_back(file);
-        }
-
-        auto train_iter = MXDataIter("MNISTIter");
-        if (!setDataIter(&train_iter, "Train", data_files, batch_size)) {
-            throw std::runtime_error("Unable to create Train Iterator");
-        }
-
-        auto val_iter = MXDataIter("MNISTIter");
-        if (!setDataIter(&val_iter, "Label", data_files, batch_size)) {
-            throw std::runtime_error("Unable to create Validation Iterator");
-        }
-
-        auto destPath = getDataDirectory({"models", "lenet"});
-        std::string model_path = destPath / "lenet-symbol.json";
-
-        auto net = symbol(10);
-        // Determine context
-        auto ctx = Context::cpu();
-        int num_gpu;
-        MXGetGPUCount(&num_gpu);
-#if !MXNET_USE_CPU
-        if (num_gpu > 0) {
-            ctx = Context::gpu();
-            batch_size = 256;
-        }
-#endif
 
         /*args_map and aux_map is used for parameters' saving*/
         std::map<std::string, NDArray> args_map;
         std::map<std::string, NDArray> aux_map;
-        const Shape data_shape = Shape(batch_size, 1, H, W),
-                label_shape = Shape(batch_size);
+        const Shape data_shape = Shape(batch_size, channels, height, width);
+        const Shape label_shape = Shape(batch_size);
 
         args_map["data"] = NDArray(data_shape, ctx);
         args_map["data_label"] = NDArray(label_shape, ctx);
@@ -174,6 +97,7 @@ public :
             //arg.first is parameter name, and arg.second is the value
             xavier(arg.first, &arg.second);
         }
+
         // Create metrics
         Accuracy train_acc, acu_val;
         LogLoss logloss_train, logloss_val;
@@ -220,20 +144,20 @@ public :
             }
             // one epoch of training is finished
             auto toc = std::chrono::system_clock::now();
-            float duration = std::chrono::duration_cast<std::chrono::milliseconds>
-                                     (toc - tic).count() / 1000.0;
+            double duration = std::chrono::duration_cast<std::chrono::milliseconds>
+                                      (toc - tic).count() / 1000.0;
 
             LG << "EPOCH [" << epoch << "] " << samples / duration << " samples/sec "
                << " Train Accuracy: " << train_acc.Get();
 
             LG << "Val Epoch: " << epoch;
             acu_val.Reset();
-            val_iter.Reset();
+            validation_iter.Reset();
             logloss_val.Reset();
             iter = 0;
 
-            while (val_iter.Next()) {
-                auto data_batch = val_iter.GetDataBatch();
+            while (validation_iter.Next()) {
+                auto data_batch = validation_iter.GetDataBatch();
                 ResizeInput(data_batch.data, data_shape).CopyTo(&args_map["data"]);
                 data_batch.label.CopyTo(&args_map["data_label"]);
                 NDArray::WaitAll();
@@ -251,16 +175,18 @@ public :
                 ++iter;
             }
 
-            LG << "EPOCH [" << epoch << "] Val Accuracy: " << acu_val.Get();
-            LG << "EPOCH [" << epoch << "] Val LogLoss: " << logloss_val.Get();
+            LG << "EPOCH: " << epoch << " ITER: " << iter
+               << " Val Accuracy: " << acu_val.Get()
+               << " Val Loss: " << logloss_val.Get();
 
-            /*save the parameters */
+            /* save the parameters, why not   sprintf(buff, "%05d", 123) ??? */
             std::string pid(std::to_string(epoch + 1));
             pid.insert(0, 4 - pid.length(), '0');
-            std::string param_path = destPath / ("lenet-" + pid + ".params");
+            std::string param_path = destPath / (prefix + "-" + pid + ".params");
+            std::string model_path = destPath / (prefix + "-symbol.json");
+
             LG << "EPOCH [" << epoch << "] Saving params to..." << param_path;
             LG << "EPOCH [" << epoch << "] Saving model  to..." << model_path;
-
             // saving model so in case we stopped mid training we have something to work with
             SaveCheckpoint(param_path, model_path, net, exec);
         }
