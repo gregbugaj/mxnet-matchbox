@@ -1,5 +1,4 @@
 #include <iostream>
-#include <set>
 #include <experimental/filesystem>
 #include <mxnet-cpp/MxNetCpp.h>
 #include <leptonica/allheaders.h>
@@ -25,7 +24,7 @@ void printUsage();
 static mxnet::cpp::Context global_ctx(mxnet::cpp::kCPU, 0);
 // static Context global_ctx(mxnet::cpp::kCPU,0);
 
-
+int iterators_mxnet();
 
 void version() {
     int version;
@@ -39,11 +38,12 @@ void version() {
 
 int main(int argc, char const *argv[]) {
 
-    /*
-    version();
-    evaluate();
-*/
-    train();
+    iterators_mxnet();
+
+    /*version();
+       evaluate();
+   */
+//    train();
 //    evaluate();
     return 0;
 }
@@ -157,7 +157,6 @@ void train() {
     trainer.train(ctx, net, train_iter, validation_iter, 1, Shape(batch_size, 1, 28, 28), destPath, "lenet");
 }
 
-
 void printUsage() {
     std::cout << "Usage:" << std::endl;
     std::cout << "imagenet_inference --symbol_file <model symbol file in json format>" << std::endl
@@ -177,4 +176,32 @@ void printUsage() {
               << "default: false>" << std::endl
               << "--benchmark <whether to use dummy data to run inference, default: false>"
               << std::endl;
+}
+
+int iterators_mxnet() {
+    mx_uint num_data_iter_creators;
+    DataIterCreator *data_iter_creators = nullptr;
+
+    int r = MXListDataIters(&num_data_iter_creators, &data_iter_creators);
+    CHECK_EQ(r, 0);
+    LG << "num_data_iter_creators = " << num_data_iter_creators;
+    //output: num_data_iter_creators = 8
+
+    const char *name;
+    const char *description;
+    mx_uint num_args;
+    const char **arg_names;
+    const char **arg_type_infos;
+    const char **arg_descriptions;
+
+    for (mx_uint i = 0; i < num_data_iter_creators; i++) {
+        r = MXDataIterGetIterInfo(data_iter_creators[i], &name, &description,
+                                  &num_args, &arg_names, &arg_type_infos,
+                                  &arg_descriptions);
+        CHECK_EQ(r, 0);
+        LG << " i: " << i << ", name: " << name;
+    }
+
+    MXNotifyShutdown();
+    return 0;
 }
