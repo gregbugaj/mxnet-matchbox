@@ -13,8 +13,11 @@ MXDataIter RecordIoDataSetIterator::getMXDataIter() {
     // set Batch parameters
     iter.SetParam("batch_size", _batch_size);
 
+    iter.SetParam("rand_crop", false);
+    iter.SetParam("rand_mirror", false);
+
     // image record parameters
-    iter.SetParam("shuffle", true);
+    iter.SetParam("shuffle", _shuffle);
     iter.SetParam("seed", _seed);
 
     // set normalize parameters

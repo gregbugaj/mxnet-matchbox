@@ -31,7 +31,7 @@ private :
     int _batch_size;
     int _seed;
     int _shuffle_chunk_seed;
-    int _preprocess_threads;
+    int _preprocess_threads = 4;
     bool _shuffle;
     std::string _path_imgrec;
     std::string _path_imgidx;
