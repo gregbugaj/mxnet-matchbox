@@ -4,21 +4,21 @@ MXDataIter RecordIoDataSetIterator::getMXDataIter() {
     auto iter = MXDataIter("ImageRecordIter");
 
     // set image record parser parameters
-    iter.SetParam("path_imgrec", _path_imgrec);
+    iter.SetParam("path_imgrec_", path_imgrec_);
     iter.SetParam("label_width", 1);
-    iter.SetParam("data_shape", _data_shape);
-    iter.SetParam("preprocess_threads", _preprocess_threads); // number of threads for data decoding
-    iter.SetParam("shuffle_chunk_seed", _shuffle_chunk_seed);
+    iter.SetParam("data_shape_", data_shape_);
+    iter.SetParam("preprocess_threads", preprocess_threads_); // number of threads for data decoding
+    iter.SetParam("shuffle_chunk_seed", shuffle_chunk_seed_);
 
     // set Batch parameters
-    iter.SetParam("batch_size", _batch_size);
+    iter.SetParam("batch_size", batch_size_);
 
     iter.SetParam("rand_crop", false);
     iter.SetParam("rand_mirror", false);
 
     // image record parameters
-    iter.SetParam("shuffle", _shuffle);
-    iter.SetParam("seed", _seed);
+    iter.SetParam("shuffle", shuffle_);
+    iter.SetParam("seed", seed_);
 
     // set normalize parameters
     iter.SetParam("mean_r", rgb_mean_[0]);

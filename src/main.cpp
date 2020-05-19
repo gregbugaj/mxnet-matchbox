@@ -38,8 +38,8 @@ void version() {
 
 int main(int argc, char const *argv[]) {
 
-    iterators_mxnet();
-
+//    iterators_mxnet();
+    evaluate();
     /*version();
        evaluate();
    */
@@ -71,6 +71,9 @@ int evaluate() {
 //        std::string imageFile = testRoot / "black/3_img_106.jpg";
 //        std::string imageFile = testRoot / "black/8_img_110.jpg";
 
+
+        std::string data_layer_type("float32");
+        std::string input_shape("1 28 28");
         std::string input_rgb_mean("0 0 0");
         std::string input_rgb_std("1 1 1");
 
@@ -79,11 +82,9 @@ int evaluate() {
         bool benchmark = false;
         int batch_size = 64;
         int num_inference_batches = 100;
-        std::string data_layer_type("float32");
-        std::string input_shape("1 28 28");
-        int seed = 48564309;
-        int shuffle_chunk_seed = 3982304;
-        int data_nthreads = 10;
+        int seed = 10;
+        int shuffle_chunk_seed = 20;
+        int data_nthreads = 60;
 
         if (model_file_json.empty()
             || (!benchmark && model_file_params.empty())
@@ -97,8 +98,8 @@ int evaluate() {
         input_dimensions.insert(input_dimensions.begin(), batch_size);
         Shape input_data_shape(input_dimensions);
 
-        std::vector<float> rgb_mean = createVectorFromString<float>(input_rgb_mean);
-        std::vector<float> rgb_std = createVectorFromString<float>(input_rgb_std);
+        auto rgb_mean = createVectorFromString<float>(input_rgb_mean);
+        auto rgb_std = createVectorFromString<float>(input_rgb_std);
 
         // Initialize the predictor object
         Predictor predict(model_file_json, model_file_params, synset_file, input_data_shape, use_gpu, enable_tensorrt,

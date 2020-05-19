@@ -96,11 +96,6 @@ Predictor::Predictor(const std::string &model_json_file,
     args_map_["data"] = NDArray(input_shape_, global_ctx_, false, dtype);
     args_map_["data_label"] = NDArray(label_shape, global_ctx_, false);
 
-    /*bind the executor
-    executor_ = net_.SimpleBind(global_ctx_, args_map_, std::map<std::string, NDArray>(),
-                                std::map<std::string, OpReqType>(), aux_map_);*/
-
-
     std::vector<NDArray> arg_arrays;
     std::vector<NDArray> grad_arrays;
     std::vector<OpReqType> grad_reqs;
@@ -117,8 +112,6 @@ Predictor::Predictor(const std::string &model_json_file,
 
     // Create an executor after binding the model to input parameters.
     executor_ = new Executor(net_, global_ctx_, arg_arrays, grad_arrays, grad_reqs, aux_arrays);
-
-
     for (const auto &layer_name:net_.ListOutputs()) {
         LG << layer_name;
     }
@@ -149,9 +142,9 @@ NDArray Predictor::LoadInputImage(const std::string &image_file) {
         throw std::runtime_error("Image file does not exist");
     }
     LG << "Loading the image " << image_file << std::endl;
-    cv::Mat mat = cv::imread(image_file, cv::IMREAD_GRAYSCALE);
-    mat.convertTo(mat, CV_32F);
-//    mat.convertTo(mat, CV_32F, 1.f/255);
+    cv::Mat mat = cv::imread(image_file, cv::IMREAD_COLOR);
+//    mat.convertTo(mat, CV_32F);
+    mat.convertTo(mat, CV_32F, 1.f/255);
     // resize pictures to (28, 28) according to the pretrained model
     int channels = input_shape_[1];
     int height = input_shape_[2];

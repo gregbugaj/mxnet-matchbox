@@ -2,6 +2,7 @@
 #define MATCHBOX_RECORDIODATASETITERATOR_HPP
 
 #include <dataset/DataSetIterator.hpp>
+#include <vectorutils.hpp>
 
 /**
  * Support for creating ImageIO MXNET Iterators
@@ -21,23 +22,28 @@ class RecordIoDataSetIterator : public DataSetIterator {
 
 public :
     RecordIoDataSetIterator(std::string path_imgrec, std::string path_imgidx, Shape data_shape, int batch_size,
-                            bool shuffle, int seed) {
+                            bool shuffle, int seed, std::string &rgb_mean, std::string &rgb_std) :
+            path_imgrec_(path_imgrec), path_imgidx_(path_imgidx),
+            data_shape_(data_shape), batch_size_(batch_size),
+            shuffle_(shuffle), seed_(seed) {
         validateFile(path_imgrec);
         validateFile(path_imgidx);
+
+        rgb_mean_ = createVectorFromString<float>(rgb_mean);
+        rgb_std_ = createVectorFromString<float>(rgb_std);
     }
 
     MXDataIter getMXDataIter() override;
 
 private :
-    int _batch_size;
-    int _seed;
-    int _shuffle_chunk_seed;
-    int _preprocess_threads = 4;
-    bool _shuffle;
-    std::string _path_imgrec;
-    std::string _path_imgidx;
-    Shape _data_shape;
-
+    int batch_size_;
+    int seed_;
+    int shuffle_chunk_seed_;
+    int preprocess_threads_ = 4;
+    bool shuffle_;
+    std::string path_imgrec_;
+    std::string path_imgidx_;
+    Shape data_shape_;
     std::vector<float> rgb_mean_;
     std::vector<float> rgb_std_;
 };
