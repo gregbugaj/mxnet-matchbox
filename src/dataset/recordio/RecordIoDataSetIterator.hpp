@@ -14,7 +14,8 @@
  * @ref https://gluon-cv.mxnet.io/build/examples_datasets/recordio.html
  * @ref https://mxnet.apache.org/api/python/docs/api/mxnet/io/index.html#mxnet.io.ImageRecordIter
  * @ref ./cpp-package/example/inference/imagenet_inference.cpp
- * ref https://github.com/apache/incubator-mxnet/blob/master/tools/im2rec.cc
+ * @ref https://github.com/apache/incubator-mxnet/blob/master/tools/im2rec.cc
+ * @ref https://github.com/KeyKy/mobilenet-mxnet/blob/master/score.py
  */
 class RecordIoDataSetIterator : public DataSetIterator {
 

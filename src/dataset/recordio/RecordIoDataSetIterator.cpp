@@ -7,7 +7,7 @@ MXDataIter RecordIoDataSetIterator::getMXDataIter() {
     iter.SetParam("path_imgrec", _path_imgrec);
     iter.SetParam("label_width", 1);
     iter.SetParam("data_shape", _data_shape);
-    iter.SetParam("preprocess_threads", _preprocess_threads);
+    iter.SetParam("preprocess_threads", _preprocess_threads); // number of threads for data decoding
     iter.SetParam("shuffle_chunk_seed", _shuffle_chunk_seed);
 
     // set Batch parameters
