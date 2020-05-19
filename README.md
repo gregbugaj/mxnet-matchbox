@@ -29,7 +29,11 @@ https://github.com/zalandoresearch/fashion-mnist
 https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=95651665
 https://mxnet.apache.org/api/python/docs/tutorials/packages/gluon/image/mnist.html
 https://stackoverflow.com/questions/39293922/convert-between-opencv-mat-and-leptonica-pix#39293974
-https://stackoverflow.com/questions/55297514/mxnet-c-inference-with-mxpredsetinput-segmentation-fault
+
+Multi-channel images 
+    https://stackoverflow.com/questions/55297514/mxnet-c-inference-with-mxpredsetinput-segmentation-fault
+computing mean image
+    https://github.com/apache/incubator-mxnet/issues/371
 
 # Python testing notes
 ~/dev/3rdparty/mxnet/example/image-classification$ python3 ./train_mnist.py  --network lenet  --model-prefix /home/greg/dev/rms/matchbox/data/models/py-mlp/lenet
