@@ -18,6 +18,7 @@ Project has following dependencies
 
 ## Building
 
+## Creating 
 
 # Minist as JPG
 https://www.kaggle.com/scolianni/mnistasjpg
@@ -40,3 +41,4 @@ computing mean image
 
 # Network visualization 
 https://lutzroeder.github.io/netron/
+
