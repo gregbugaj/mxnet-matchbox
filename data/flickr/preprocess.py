@@ -11,8 +11,18 @@ import random
 from os import listdir
 from os.path import isfile, join
 from os import walk
-
+from time import time
 import matplotlib.pyplot as plt
+
+import logging
+import tarfile
+logging.basicConfig(level=logging.INFO)
+
+from mxnet.gluon.data.vision import ImageFolderDataset
+from mxnet.gluon.data import DataLoader
+from mxnet.contrib.io import DataLoaderIter
+
+
 
 # Dependency update
 # python3 -m pip install --upgrade pip
@@ -92,7 +102,6 @@ def copyfiles(files, srcDir, destDir):
         src  = os.path.join(srcDir, filename)
         dest = os.path.join(destDir, filename)
         print ("copy   > {} : {}".format(src, dest))
-        
         shutil.copy (src, dest)
 
 def separateTrainingSet():
@@ -131,9 +140,9 @@ def separateTrainingSet():
         testing_files    = filenames[validationSize:validationSize+testSize]
         training_files   = filenames[validationSize+testSize:]
 
-        print("Validation  >> {}, {}".format(len(validation_files), validation_files))
-        print("Testing     >> {}, {}".format(len(testing_files), testing_files))
-        print("Training    >> {}, {}".format(len(training_files), training_files))
+        print("Number of Validation Images : {}, {}".format(len(validation_files), validation_files))
+        print("Number of Testing Images    : {}, {}".format(len(testing_files), testing_files))
+        print("Number of Training Images   : {}, {}".format(len(training_files), training_files))
         
         trainSetData = os.path.join("./trainingset/train_data", clazz)
         testSetData = os.path.join("./trainingset/test_data", clazz)
@@ -143,24 +152,54 @@ def separateTrainingSet():
         copyfiles(validation_files, clazzDir, valSetData)
         copyfiles(testing_files, clazzDir, testSetData)
 
-def transform(data, label, augs):
-    data = data.astype('float32')
-    for aug in augs:
-        data = aug(data)
-    # from (H x W x c) to (c x H x W)
-    data = mx.nd.transpose(data, (2, 0, 1))
-    return data, mx.nd.array(([label])).asscalar().astype('float32')
 
+def get_imagenet_transforms(data_shape=224, dtype='float32'):
+    def train_transform(data, label):        
+        data = data.astype('float32')
+        augs = [  
+            mx.image.HorizontalFlipAug(.5),
+            mx.image.RandomCropAug((224, 224))
+        ]
+        for aug in augs:
+            data = aug(data)
+        # from (H x W x c) to (c x H x W)
+        data = mx.nd.transpose(data, (2, 0, 1))
+        return data, mx.nd.array(([label])).asscalar().astype('float32')
 
+    def val_transform(data, label):        
+        data = data.astype('float32')
+        augs = [  
+            mx.image.CenterCropAug((224,224))
+        ]
+        for aug in augs:
+            data = aug(data)
+        # from (H x W x c) to (c x H x W)
+        data = mx.nd.transpose(data, (2, 0, 1))
+        return data, mx.nd.array(([label])).asscalar().astype('float32')
+
+    def __train_transform(image, label):
+        image, _ = mx.image.random_size_crop(image, (data_shape, data_shape), 0.08, (3/4., 4/3.))
+        image = mx.nd.image.random_flip_left_right(image)
+        image = mx.nd.image.to_tensor(image)
+        image = mx.nd.image.normalize(image, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
+        return mx.nd.cast(image, dtype), label
+
+    def __val_transform(image, label):
+        image = mx.image.resize_short(image, data_shape + 32)
+        image, _ = mx.image.center_crop(image, (data_shape, data_shape))
+        image = mx.nd.image.to_tensor(image)
+        image = mx.nd.image.normalize(image, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
+        return mx.nd.cast(image, dtype), label
+
+    return train_transform, val_transform, val_transform
+    
 def imageInfo(srcImage):
     print("image : {}".format(srcImage))
     img = cv2.imread(srcImage)
     cv2.imshow('Image', img)
     cv2.waitKey(10000)
  
-def show_images(imgs, nrows, ncols, figsize=None):
-
-    print(imgs)
+def show_images(imgs, nrows, ncols, figsize=None):    
     """plot a grid of images"""
     figsize = (ncols, nrows)
     _, figs = plt.subplots(nrows, ncols, figsize=figsize)
@@ -171,46 +210,135 @@ def show_images(imgs, nrows, ncols, figsize=None):
             figs[i][j].axes.get_yaxis().set_visible(False)
     plt.show()
 
+def display(image_data):
+    """display images"""
+     # Now, display the first 32 images in a 8 * 4 grid:
+    for X, _ in image_data:
+        # from (B x c x H x W) to (Bx H x W x c)
+        X = X.transpose((0,2,3,1)).clip(0,255)/255
+        show_images(X, 5, 8)
+        break
+
+def _get_batch(batch, ctx):
+    """return data and label on ctx"""
+    data, label = batch
+    return (mx.gluon.utils.split_and_load(data, ctx),
+            mx.gluon.utils.split_and_load(label, ctx),
+            data.shape[0])
+    
+def evaluate_accuracy(data_iterator, net, ctx):
+    acc = mx.nd.array([0])
+    n = 0.
+    for batch in data_iterator:
+        data, label , batch_size = _get_batch(batch, ctx)
+        for X, y in zip(data, label):
+            acc += mx.nd.sum(net(X).argmax(axis = 1) == y).copyto(mx.cpu())
+            n +=  y.size
+        acc.wait_to_read() # copy from GPU to CPU
+    return acc.asscalar() / n
+
+def symbol(num_classes):
+    """Define the CNN model"""
+    cnn_net = mx.gluon.nn.Sequential()
+    with cnn_net.name_scope():
+        #  First convolutional layer
+        cnn_net.add(mx.gluon.nn.Conv2D(channels=96, kernel_size=11, strides=(4,4), activation='relu'))
+        cnn_net.add(mx.gluon.nn.MaxPool2D(pool_size=3, strides=2))
+        #  Second convolutional layer
+        cnn_net.add(mx.gluon.nn.Conv2D(channels=192, kernel_size=5, activation='relu'))
+        cnn_net.add(mx.gluon.nn.MaxPool2D(pool_size=3, strides=(2,2)))
+        # Flatten and apply fullly connected layers
+        cnn_net.add(mx.gluon.nn.Flatten())
+        cnn_net.add(mx.gluon.nn.Dense(4096, activation="relu"))
+        cnn_net.add(mx.gluon.nn.Dense(num_classes))
+    return cnn_net        
+
+def _train(net, ctx, train_data, val_data, test_data, batch_size, num_epochs, model_prefix, 
+    hybridize=False, learning_rate = 0.01, wd = 0.001):
+    """Train model and genereate checkpoints"""
+    net.collect_params().reset_ctx(ctx)
+    if hybridize == True:
+        net.hybridize()
+    loss = mx.gluon.loss.SoftmaxCrossEntropyLoss()
+    trainer = mx.gluon.Trainer(net.collect_params(), 'sgd', {'learning_rate': learning_rate, 'wd': wd})
+
+    best_epoch = -1
+    best_acc  = 0.0
+
+    if isinstance(ctx, mx.Context):
+        ctx = [ctx]
+    for epoch in range(num_epochs):
+        train_loss, train_acc, n = 0.0, 0.0, 0.0
+        start = time()
+        for i, batch in enumerate(train_data):
+            data, label, batch_size = _get_batch(batch, ctx)
+            losses = []
+            with mx.autograd.record():
+                outputs = [net(X) for X in data]
+                losses = [loss(yhat, y) for yhat, y in zip(outputs, label)]
+            for l in losses:
+                l.backward()
+            train_loss += sum([l.sum().asscalar() for l in losses])
+            trainer.step(batch_size)
+            n += batch_size
+
+        train_acc = evaluate_accuracy(train_data, net, ctx)
+        val_acc = evaluate_accuracy(val_data, net, ctx)
+        test_acc = evaluate_accuracy(test_data, net, ctx)
+        print("Epoch %d. Loss: %.3f, Train acc %.2f, Val acc %.2f, Test acc %.2f, Time %.1f sec" % (
+            epoch, train_loss/n, train_acc, val_acc, test_acc, time() - start
+        )) 
+        if val_acc > best_acc:
+            best_acc = val_acc
+            if best_epoch!=-1:
+                print('Deleting previous checkpoint...')
+                os.remove(model_prefix+'-%d.params'%(best_epoch))
+            best_epoch = epoch 
+            print('Best validation accuracy found. Checkpointing...')
+            net.collect_params().save(model_prefix+'-%d.params'%(epoch))      
 
 def train():
     print("Training")    
-
-    # MXNetError: [11:31:23] ../src/io/batchify.cc:128: Check failed: ashape == inputs[j][i].shape() ([394,395,3] vs. [36,49,3])
-    # StackBatchify requires all data along batch dim to be the same, mismatch [394,395,3] vs. [36,49,3]
-
-    batch_size = 1
-    num_classes = 3
-    num_epochs = 1
+    # Define the **hyperparameters** for the model
+    batch_size = 40
+    num_classes = 28
+    num_epochs = 2
     num_gpu = 1
     ctx = mx.cpu()#[mx.gpu(i) for i in range(num_gpu)]
-    print (ctx)
 
     # performs the transformation on the data and returns the updated data set
-    data_directory = './trainingset/'
-    # Transform the image when loading
-    train_imgs = mx.gluon.data.vision.ImageFolderDataset(data_directory+'train_data', transform=lambda X, y: transform(X, y, train_augs))
-   # test_imgs  = mx.gluon.data.vision.ImageFolderDataset(data_directory+'test_data', transform=lambda X, y: transform(X, y, val_test_augs))
-    #val_imgs   = mx.gluon.data.vision.ImageFolderDataset(data_directory+'val_data', transform=lambda X, y: transform(X, y, val_test_augs))
-   
-    # print(train_imgs)
-    # print(test_imgs)
-   #  print(val_imgs)
+    root = './trainingset'
+    train_dir = os.path.join(root, 'train_data')
+    test_dir = os.path.join(root, 'test_data')
+    val_dir = os.path.join(root, 'val_data')
+    
+    # Transform the image when loading using specific transforms
+    train_transform, val_transform, test_transform = get_imagenet_transforms(data_shape=224, dtype='float32')
 
-    train_data = mx.gluon.data.DataLoader(train_imgs, batch_size, num_workers=1, shuffle=True)
-   # val_data = mx.gluon.data.DataLoader(val_imgs, batch_size, num_workers=1)
-    #test_data = mx.gluon.data.DataLoader(test_imgs, batch_size, num_workers=1)
-       
-    print(train_data)
-    # Now, display the first 32 images in a 8 * 4 grid:
-    for X, _ in train_data:
-        # from (B x c x H x W) to (Bx H x W x c)
-        #Y = X.transpose((0, 2, 3, 1)).clip(0, 255)/255
-        print (X)
-        #show_images(X, 4, 8)
-        break
+    logging.info("Loading image folder %s, this may take a bit long...", train_dir)    
+    train_dataset = ImageFolderDataset(train_dir)
+    train_data = DataLoader(train_dataset.transform(train_transform), batch_size, shuffle=True, last_batch='discard', num_workers=1)
 
-   # print(val_data)
-   # print(test_data)
+    logging.info("Loading image folder %s, this may take a bit long...", val_dir)    
+    val_dataset = ImageFolderDataset(val_dir)
+    val_data = DataLoader(val_dataset.transform(val_transform), batch_size,  num_workers=1)
+
+    logging.info("Loading image folder %s, this may take a bit long...", test_dir)    
+    test_dataset = ImageFolderDataset(test_dir)
+    test_data = DataLoader(test_dataset.transform(test_transform), batch_size,  num_workers=1)
+
+    print("synsets(train_data) : %s " %(train_dataset.synsets))
+    print("synsets(val_data) : %s " %(val_dataset.synsets))
+    print("synsets(test_data) : %s " %(test_dataset.synsets))
+
+    #display(train_data)
+    #display(val_data)
+    #display(test_data)
+
+    net = symbol(28)
+    net.collect_params().initialize(mx.init.Xavier(magnitude=2.24), ctx=ctx)
+    _train(net, ctx, train_data, val_data, test_data, batch_size, num_epochs, model_prefix='cnn')
+
 
 if __name__ == "__main__":
     #extractLogosToFolders()
