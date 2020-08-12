@@ -204,12 +204,11 @@ def get_imagenet_transforms(data_shape=224, dtype='float32'):
         return data, mx.nd.array(([label])).asscalar().astype('float32')
 
     def __train_transform(image, label):
-        image, _ = mx.image.random_size_crop(
-            image, (data_shape, data_shape), 0.08, (3/4., 4/3.))
+        image, _ = mx.image.random_size_crop(image, (data_shape, data_shape), 0.08, (3/4., 4/3.))
         image = mx.nd.image.random_flip_left_right(image)
         image = mx.nd.image.to_tensor(image)
-        image = mx.nd.image.normalize(image, mean=(
-            0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
+        image = mx.nd.image.normalize(image, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
+            
         return mx.nd.cast(image, dtype), label
 
     def __val_transform(image, label):
@@ -253,7 +252,7 @@ def display(image_data):
 
 
 def _get_batch_data(batch, ctx):
-    """return data and label on ctx"""
+    """return data, label, batch size on ctx"""
     data, label = batch
     return (mx.gluon.utils.split_and_load(data, ctx),
             mx.gluon.utils.split_and_load(label, ctx),
@@ -272,253 +271,61 @@ def evaluate_accuracy(data_iterator, net, ctx):
     return acc.asscalar() / n
 
 
-def lenet5(num_classes):
-    """LeNet-5 Symbol"""
-    #pylint: disable=no-member
-    data = mx.sym.Variable('data')
-    conv1 = mx.sym.Convolution(data=data, kernel=(5, 5), num_filter=20)
-    tanh1 = mx.sym.Activation(data=conv1, act_type="tanh")
-    pool1 = mx.sym.Pooling(data=tanh1, pool_type="max",
-                           kernel=(2, 2), stride=(2, 2))
-    # second conv
-    conv2 = mx.sym.Convolution(data=pool1, kernel=(5, 5), num_filter=50)
-    tanh2 = mx.sym.Activation(data=conv2, act_type="tanh")
-    pool2 = mx.sym.Pooling(data=tanh2, pool_type="max",
-                           kernel=(2, 2), stride=(2, 2))
-    # first fullc
-    flatten = mx.sym.Flatten(data=pool2)
-    fc1 = mx.sym.FullyConnected(data=flatten, num_hidden=500)
-    tanh3 = mx.sym.Activation(data=fc1, act_type="tanh")
-    # second fullc
-    fc2 = mx.sym.FullyConnected(data=tanh3, num_hidden=num_classes)
-    # loss
-    lenet = mx.sym.SoftmaxOutput(data=fc2, name='softmax')
-    #pylint: enable=no-member
-    return lenet
+def get_gluon_network_128(class_numbers):
+    net = nn.HybridSequential()
+    with net.name_scope():
+        net.add(
+            nn.Flatten(),
+            nn.Dense(units=128, activation="relu"),
+            nn.Dense(units=64, activation="relu"),
+            nn.Dense(units=class_numbers)
+        )
+    return net
 
-
-def get_alexnet(num_classes):
-    input_data = mx.symbol.Variable(name="data")
-    # stage 1
-    conv1 = mx.symbol.Convolution(data=input_data, kernel=(
-        11, 11), stride=(4, 4), num_filter=96)
-    relu1 = mx.symbol.Activation(data=conv1, act_type="relu")
-    lrn1 = mx.symbol.LRN(data=relu1, alpha=0.0001, beta=0.75, knorm=1, nsize=5)
-    pool1 = mx.symbol.Pooling(
-        data=lrn1, pool_type="max", kernel=(3, 3), stride=(2, 2))
-    # stage 2
-    conv2 = mx.symbol.Convolution(
-        data=pool1, kernel=(5, 5), pad=(2, 2), num_filter=256)
-    relu2 = mx.symbol.Activation(data=conv2, act_type="relu")
-    lrn2 = mx.symbol.LRN(data=relu2, alpha=0.0001, beta=0.75, knorm=1, nsize=5)
-    pool2 = mx.symbol.Pooling(data=lrn2, kernel=(
-        3, 3), stride=(2, 2), pool_type="max")
-    # stage 3
-    conv3 = mx.symbol.Convolution(
-        data=pool2, kernel=(3, 3), pad=(1, 1), num_filter=384)
-    relu3 = mx.symbol.Activation(data=conv3, act_type="relu")
-    conv4 = mx.symbol.Convolution(
-        data=relu3, kernel=(3, 3), pad=(1, 1), num_filter=384)
-    relu4 = mx.symbol.Activation(data=conv4, act_type="relu")
-    conv5 = mx.symbol.Convolution(
-        data=relu4, kernel=(3, 3), pad=(1, 1), num_filter=256)
-    relu5 = mx.symbol.Activation(data=conv5, act_type="relu")
-    pool3 = mx.symbol.Pooling(data=relu5, kernel=(
-        3, 3), stride=(2, 2), pool_type="max")
-    # stage 4
-    flatten = mx.symbol.Flatten(data=pool3)
-    fc1 = mx.symbol.FullyConnected(data=flatten, num_hidden=4096)
-    relu6 = mx.symbol.Activation(data=fc1, act_type="relu")
-    dropout1 = mx.symbol.Dropout(data=relu6, p=0.5)
-    # stage 5
-    fc2 = mx.symbol.FullyConnected(data=dropout1, num_hidden=4096)
-    relu7 = mx.symbol.Activation(data=fc2, act_type="relu")
-    dropout2 = mx.symbol.Dropout(data=relu7, p=0.5)
-
-    # stage 6
-    fc3 = mx.symbol.FullyConnected(data=dropout2, num_hidden=num_classes)
-    softmax = mx.symbol.SoftmaxOutput(data=fc3, name='softmax')
-    return softmax
-
-
-def cnn_net_3XX(num_classes):
-    """Define the AlexNet CNN model"""
-    data = mx.symbol.Variable('data')
-    conv1 = mx.sym.Convolution(data=data, pad=(
-        1, 1), kernel=(3, 3), num_filter=24, name="conv1")
-    relu1 = mx.sym.Activation(data=conv1, act_type="relu", name="relu1")
-    pool1 = mx.sym.Pooling(data=relu1, pool_type="max", kernel=(
-        2, 2), stride=(2, 2), name="max_pool1")
-    # second conv layer
-    conv2 = mx.sym.Convolution(data=pool1, kernel=(
-        3, 3), num_filter=48, name="conv2", pad=(1, 1))
-    relu2 = mx.sym.Activation(data=conv2, act_type="relu", name="relu2")
-    pool2 = mx.sym.Pooling(data=relu2, pool_type="max", kernel=(
-        2, 2), stride=(2, 2), name="max_pool2")
-
-    conv3 = mx.sym.Convolution(data=pool2, kernel=(
-        5, 5), num_filter=64, name="conv3")
-    relu3 = mx.sym.Activation(data=conv3, act_type="relu", name="relu3")
-    pool3 = mx.sym.Pooling(data=relu3, pool_type="max", kernel=(
-        2, 2), stride=(2, 2), name="max_pool3")
-
-    #conv4 = mx.sym.Convolution(data=conv3, kernel=(5,5), num_filter=64, name="conv4")
-    #relu4 = mx.sym.Activation(data=conv4, act_type="relu", name="relu4")
-    #pool4 = mx.sym.Pooling(data=relu4, pool_type="max", kernel=(2,2), stride=(2,2),name="max_pool4")
-
-    # first fullc layer
-    flatten = mx.sym.Flatten(data=pool3)
-    fc1 = mx.symbol.FullyConnected(data=flatten, num_hidden=500, name="fc1")
-    relu3 = mx.sym.Activation(data=fc1, act_type="relu", name="relu3")
-    # second fullc
-    fc2 = mx.sym.FullyConnected(data=relu3, num_hidden=43, name="final_fc")
-    # softmax loss
-    mynet = mx.sym.SoftmaxOutput(data=fc2, name='softmax')
-
-    return mynet
-
-
-def _train_symbolic(net, ctx, train_data: DataLoader, val_data: DataLoader, test_data: DataLoader, batch_size, num_epochs, model_prefix,
-                    hybridize=False, learning_rate=0.1, wd=0.001):
-    """Train model and genereate checkpoints"""
-    #create adam optimiser
-    print("Training datatypes")
-    print(type(net))
-    print(type(train_data))
-    print(type(val_data))
-    print(type(test_data))
-
-    best_epoch = -1
-    best_acc = 0.0
-
-    train_iter = DataLoaderIter(train_data)
-    # train_iter=SimpleIter(gluon_data_loader)
-
-    # create module
-    #mod = mx.mod.Module(symbol=net, data_names=['data'], label_names=['softmax_label'])
-    mod = mx.mod.Module(symbol=net,
-                        context=mx.cpu(),
-                        data_names=['data'],
-                        label_names=['softmax_label'])
-    # allocate memory by given the input data and lable shapes
-    mod.bind(data_shapes=train_iter.provide_data,
-             label_shapes=train_iter.provide_label)
-
-    # initialize parameters by uniform random numbers
-    initializer = mx.initializer.Normal()
-    #mod.init_params(initializer=init)
-    #optimizer = 'adam'
-
-    """ if optimizer == 'sgd':
-        # use Sparse SGD with learning rate 0.1 to train
-        sgd = mx.optimizer.SGD(momentum=0.1, clip_gradient=5.0, learning_rate=0.01,
-                                rescale_grad=1.0/batch_size)
-        mod.init_optimizer(optimizer=sgd)
-        if num_epochs is None:
-            num_epochs = 10
-        expected_accuracy = 0.02
-    elif optimizer == 'adam':
-        # use Sparse Adam to train
-        adam = mx.optimizer.Adam(clip_gradient=5.0, learning_rate=0.0005,
-                                    rescale_grad=1.0/batch_size)
-        mod.init_optimizer(optimizer=adam)
-        if num_epochs is None:
-            num_epochs = 10
-        expected_accuracy = 0.05
-    elif optimizer == 'adagrad':
-        # use Sparse AdaGrad with learning rate 0.1 to train
-        adagrad = mx.optimizer.AdaGrad(clip_gradient=5.0, learning_rate=0.01,
-                                        rescale_grad=1.0/batch_size)
-        mod.init_optimizer(optimizer=adagrad)
-        if num_epochs is None:
-            num_epochs = 20
-        expected_accuracy = 0.09
-    else:
-        raise AssertionError("Unsupported optimizer type '" + optimizer + "' specified")  """
-
-    # use accuracy as the metric
-    metric = mx.metric.create('MSE')
-
-    if isinstance(ctx, mx.Context):
-        ctx = [ctx]
-
-    eval_metrics = ['accuracy']
-
-    #batch_end_callback = mx.callback.Speedometer(args.batch_size, 50)
-    _batch_end_callback = mx.callback.Speedometer(
-        batch_size, batch_size, auto_reset=False),
-
-    def checkpoint(arg1, arg2, arg3, arg4):
-        print("Checkpoint now %s" % (type(arg1)))
-    # learning rate
-    lr, lr_scheduler = _get_lr_scheduler(args, kv)
-
-    optimizer_params = {
-        'learning_rate': learning_rate,
-        'wd': wd,
-        #    'lr_scheduler': lr_scheduler,
-        'multi_precision': True}
-
-    # fit the module
-    mod.fit(train_iter,
-            eval_data=train_iter,
-            optimizer='sgd',
-            optimizer_params=optimizer_params,
-            initializer=initializer,
-            eval_metric=eval_metrics,
-            num_epoch=num_epochs,
-            batch_end_callback=_batch_end_callback,
-            epoch_end_callback=checkpoint
-            )
-
-
-""" 
-    for epoch in range(num_epochs):
-        print("Starting Epoch %d"  % (epoch))
-
-        train_loss, train_acc, n = 0.0, 0.0, 0.0
-        start = time()  
-        for i, batch in enumerate(train_data):
-            data, label, batch_size = _get_batch_data(batch, ctx)
-           # print(" Batch [%d] "  % (i))
- """
-
-
-def get_net(class_numbers):
+def get_gluon_network_256(num_classes):
     # construct a MLP
     net = nn.HybridSequential()
     with net.name_scope():
         net.add(nn.Dense(256, activation="relu"))
         net.add(nn.Dense(128, activation="relu"))
-        net.add(nn.Dense(class_numbers))
-    # initialize the parameters
-    net.collect_params().initialize()
+        net.add(nn.Dense(num_classes))
+
     return net
 
+def get_gluon_network_cnn(num_classes):
+    cnn_net = mx.gluon.nn.Sequential()
+    with cnn_net.name_scope():
+        #  First convolutional layer
+        cnn_net.add(mx.gluon.nn.Conv2D(channels=96, kernel_size=11, strides=(4,4), activation='relu'))
+        cnn_net.add(mx.gluon.nn.MaxPool2D(pool_size=3, strides=2))
+        #  Second convolutional layer
+        cnn_net.add(mx.gluon.nn.Conv2D(channels=192, kernel_size=5, activation='relu'))
+        cnn_net.add(mx.gluon.nn.MaxPool2D(pool_size=3, strides=(2,2)))
+        # Flatten and apply fullly connected layers
+        cnn_net.add(mx.gluon.nn.Flatten())
+        cnn_net.add(mx.gluon.nn.Dense(4096, activation="relu"))
+        cnn_net.add(mx.gluon.nn.Dense(num_classes))
 
-def get_symbol_mlp(num_classes, **kwargs):
-    data = mx.symbol.Variable('data')
-    data = mx.sym.Flatten(data=data)
-    fc1  = mx.symbol.FullyConnected(data = data, name='fc1', num_hidden=128)
-    act1 = mx.symbol.Activation(data = fc1, name='relu1', act_type="relu")
-    fc2  = mx.symbol.FullyConnected(data = act1, name = 'fc2', num_hidden = 64)
-    act2 = mx.symbol.Activation(data = fc2, name='relu2', act_type="relu")
-    fc3  = mx.symbol.FullyConnected(data = act2, name='fc3', num_hidden=num_classes)
-    mlp  = mx.symbol.SoftmaxOutput(data = fc3, name = 'softmax')
-    return mlp
+    return cnn_net
 
 
-
-def _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epochs, model_prefix,
-                  hybridize=False, learning_rate=0.1, wd=0.001):
+def _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epochs, model_prefix, hybridize=False, learning_rate=0.1, wd=0.001):
     """Train model and genereate checkpoints"""
-    net.collect_params().reset_ctx(ctx)
-    if hybridize == True:
-        net.hybridize()
-
+    
     optimizer_params={'learning_rate': 0.1, 'momentum':0.9, 'wd':0.00001}
-    loss = mx.gluon.loss.SoftmaxCrossEntropyLoss()
+    # Initialize network and trainer
+    # net.initialize(mx.init.Xavier(magnitude=2.24), ctx=ctx) 
+    net.collect_params().initialize(mx.init.Xavier(magnitude=2.24), ctx=ctx)
+
+    net.collect_params().reset_ctx(ctx)
     trainer = mx.gluon.Trainer(net.collect_params(), 'sgd', optimizer_params)
+
+    # Performance improvement
+    if hybridize == True:
+        net.hybridize(static_alloc=True, static_shape=True)
+
+    # loss function we will use in our training loop
+    loss = mx.gluon.loss.SoftmaxCrossEntropyLoss()
 
     best_epoch = -1
     best_acc = 0.0
@@ -528,25 +335,23 @@ def _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epo
 
     # Pick a metric
     # metric = mx.metric.Accuracy() # Returns scalars
-    metric = CompositeEvalMetric(
-        [Accuracy(), TopKAccuracy(5)])  # Returns array
+    metric = CompositeEvalMetric([Accuracy(), TopKAccuracy(5)])  # Returns array
 
     for epoch in range(num_epochs):
         logger.info("Starting Epoch %d" % (epoch))
         tic = time()
 
-        #train_data.reset() # If running as iteratiro
+        #train_data.reset() # If running as iterator
 
-        metric.reset()
         btic = time()
         start = time()
 
         train_loss, train_acc, n = 0.0, 0.0, 0.0
         for i, batch in enumerate(train_data):
             data, label, batch_size = _get_batch_data(batch, ctx)
-
             outputs = []
             losses = []
+
             with ag.record():
                 for x, y in zip(data, label):
                     z = net(x)  # Forward pass
@@ -555,12 +360,14 @@ def _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epo
                     # on all GPUs for better speed on multiple GPUs.
                     losses.append(L)
                     outputs.append(z)
-                ag.backward(losses)
 
-            metric.update(label, outputs)
+            for l in losses:
+                l.backward()
+
             trainer.step(batch_size)
             train_loss += sum([l.sum().asscalar() for l in losses])
             n += batch_size
+            metric.update(label, outputs) # update the metrics # end of mini-batc
 
         name, acc = metric.get()
 
@@ -582,15 +389,17 @@ def _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epo
             print('Best validation accuracy found. Checkpointing...')
             net.collect_params().save(model_prefix+'-%d.params' % (epoch))
 
+        metric.reset() # end of epoch
+
 
 def train():
     print("Training")
     mx.random.seed(42)  # Fix the seed for reproducibility
-
+ 
     # Define the **hyperparameters** for the model
-    batch_size = 32
+    batch_size = 16
     num_classes = 28
-    num_epochs = 10
+    num_epochs = 20
 
     # construct and initialize network.
     ctx = mx.gpu() if mx.context.num_gpus() else mx.cpu()
@@ -608,17 +417,17 @@ def train():
     #logging.info("Loading image folder %s, this may take a bit long...", train_dir)
     train_dataset = ImageFolderDataset(train_dir)
     train_data = DataLoader(train_dataset.transform(
-        train_transform), batch_size, shuffle=True, last_batch='discard', num_workers=1)
+        train_transform), batch_size, shuffle=True, last_batch='discard', num_workers=4)
 
     #logging.info("Loading image folder %s, this may take a bit long...", val_dir)
     val_dataset = ImageFolderDataset(val_dir)
     val_data = DataLoader(val_dataset.transform(
-        val_transform), batch_size,  num_workers=1)
+        val_transform), batch_size,  num_workers=4)
 
     #logging.info("Loading image folder %s, this may take a bit long...", test_dir)
     test_dataset = ImageFolderDataset(test_dir)
     test_data = DataLoader(test_dataset.transform(
-        test_transform), batch_size,  num_workers=1)
+        test_transform), batch_size,  num_workers=4)
 
     print("synsets(train_data) : %s " % (train_dataset.synsets))
     print("synsets(val_data) : %s " % (val_dataset.synsets))
@@ -628,20 +437,15 @@ def train():
     #display(val_data)
     #display(test_data)
 
-    # net = cnn_net_3(28)
-    net = get_alexnet(28)
-
     for data, label in train_data:
         print(data.shape, label.shape)
         break
 
     for i, (x, y) in enumerate(train_data):
         print("index : %s  :: %s x  %s" % (i, x.shape, y.shape))
- 
-    net = get_net(28)
-    #symbol = get_symbol_mlp(28)
-    #_train(net, ctx, train_data, val_data, test_data, batch_size, num_epochs, model_prefix='cnn')
-    _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epochs, model_prefix='cnn', hybridize=True)
+
+    net = get_gluon_network_cnn(28)
+    _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epochs, model_prefix='cnn', hybridize=False)
 
 if __name__ == "__main__":
     #extractLogosToFolders()
