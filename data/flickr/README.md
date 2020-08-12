@@ -19,3 +19,7 @@ https://discuss.mxnet.io/t/mnist-dataloader-example-doesnt-terminate/5495
 ## Notes
 
 https://sisyphus.gitbook.io/project/deep-learning-basics/basics/regularizations
+
+## Issues
+CUDNN_STATUS_SUCCESS (4 vs. 0) cuDNN: CUDNN_STATUS_INTERNAL_ERROR
+https://github.com/apache/incubator-mxnet/issues/9612
