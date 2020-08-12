@@ -12,7 +12,7 @@ import os
 import argparse
 import cv2
 
-
+import numpy as np
 import shutil
 import math
 import random
@@ -190,6 +190,9 @@ def get_imagenet_transforms(data_shape=224, dtype='float32'):
             data = aug(data)
         # from (H x W x c) to (c x H x W)
         data = mx.nd.transpose(data, (2, 0, 1))
+
+        # 0.1 range
+        data = data.astype(np.float32)/255
         return data, mx.nd.array(([label])).asscalar().astype('float32')
 
     def val_transform(data, label):
@@ -249,6 +252,7 @@ def display(image_data):
         X = X.transpose((0, 2, 3, 1)).clip(0, 255)/255
         show_images(X, 5, 8)
         break
+
 
 
 def _get_batch_data(batch, ctx):
@@ -311,70 +315,76 @@ def get_gluon_network_cnn(num_classes):
 
 def _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epochs, model_prefix, hybridize=False, learning_rate=0.1, wd=0.001):
     """Train model and genereate checkpoints"""
-    
-#   optimizer_params={'learning_rate': 0.1, 'momentum':0.9, 'wd':0.00001}
-    optimizer_params={'learning_rate': 0.1, 'momentum':0.9}
+    if isinstance(ctx, mx.Context):
+        ctx = [ctx]
 
+    # Data Iterators require call to `reset` during trainging 
+
+    # train_data = DataLoaderIter(train_dataXX)
+    optimizer_params={'learning_rate': 0.01, 'momentum':0.9, 'wd':0.00001}
     # Initialize network and trainer
-    # net.initialize(mx.init.Xavier(magnitude=2.24), ctx=ctx) 
-    net.collect_params().initialize(mx.init.Xavier(magnitude=2.24), ctx=ctx)
+    net.initialize(mx.init.Xavier(magnitude=2.24), ctx=ctx) 
+    # net.collect_params().initialize(mx.init.Xavier(magnitude=2.24), ctx=ctx) # This causes the model to explode with NAN for the loss
+    # net.collect_params().initialize(mx.init.Normal(sigma=0.01), ctx=ctx)
+    net.collect_params().reset_ctx(ctx)
 
     # net.collect_params().reset_ctx(ctx)
-    trainer = mx.gluon.Trainer(net.collect_params(), 'sgd', optimizer_params)
+    # trainer = mx.gluon.Trainer(net.collect_params(), 'sgd', optimizer_params)
+    trainer = gluon.Trainer(net.collect_params(), 'adam', {'learning_rate': 1E-3})
+    # trainer = mx.gluon.Trainer(net.collect_params(), 'sgd', optimizer_params)
 
     # Performance improvement
     if hybridize == True:
         net.hybridize(static_alloc=True, static_shape=True)
 
     # loss function we will use in our training loop
-    loss = mx.gluon.loss.SoftmaxCrossEntropyLoss()
+    loss_fn = mx.gluon.loss.SoftmaxCrossEntropyLoss()
 
     best_epoch = -1
     best_acc = 0.0
 
-    if isinstance(ctx, mx.Context):
-        ctx = [ctx]
-
     # Pick a metric
     # metric = mx.metric.Accuracy() # Returns scalars
     metric = CompositeEvalMetric([Accuracy(), TopKAccuracy(5)])  # Returns array
-
     logger.info("Batch size : s%d" % (batch_size))
 
     for epoch in range(num_epochs):
         logger.info("Starting Epoch %d" % (epoch))
         tic = time()
-
+#        train_data.reset()
         #train_data.reset() # If running as iterator
-
         btic = time()
         start = time()
 
         train_loss, train_acc, n = 0.0, 0.0, 0.0
         for i, batch in enumerate(train_data):
             data, label, batch_size = _get_batch_data(batch, ctx)
+            # print('batch.data[0] : %s' % (batch.data[0].shape[0]))
             outputs = []
             losses = []
 
             with ag.record():
                 for x, y in zip(data, label):
                     z = net(x)  # Forward pass
-                    L = loss(z, y)  # Calculate loss
+                    L = loss_fn(z, y)  # Calculate loss
                     # store the loss and do backward after we have done forward
                     # on all GPUs for better speed on multiple GPUs.
                     losses.append(L)
                     outputs.append(z)
+                    print('   loss[L] : %s' % (L))
 
             for l in losses:
                 l.backward()
 
             trainer.step(batch_size)
             train_loss += sum([l.sum().asscalar() for l in losses])
+
             n += batch_size
             metric.update(label, outputs) # update the metrics # end of mini-batc
+            print('train_loss: %s' % (train_loss))
 
+        print('Total train_loss: %s' % (train_loss))
         name, acc = metric.get()
-
         train_acc = evaluate_accuracy(train_data, net, ctx)
         val_acc = evaluate_accuracy(val_data, net, ctx)
         test_acc = evaluate_accuracy(test_data, net, ctx)
@@ -401,7 +411,7 @@ def train():
     mx.random.seed(42)  # Fix the seed for reproducibility
  
     # Define the **hyperparameters** for the model
-    batch_size = 16
+    batch_size = 64
     num_classes = 28
     num_epochs = 20
 
@@ -416,8 +426,7 @@ def train():
     val_dir = os.path.join(root, 'val_data')
 
     # Transform the image when loading using specific transforms
-    train_transform, val_transform, test_transform = get_imagenet_transforms(
-        data_shape=224, dtype='float32')
+    train_transform, val_transform, test_transform = get_imagenet_transforms(data_shape=224, dtype='float32')
 
     #logging.info("Loading image folder %s, this may take a bit long...", train_dir)
     train_dataset = ImageFolderDataset(train_dir)
