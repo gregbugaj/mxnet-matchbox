@@ -312,12 +312,14 @@ def get_gluon_network_cnn(num_classes):
 def _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epochs, model_prefix, hybridize=False, learning_rate=0.1, wd=0.001):
     """Train model and genereate checkpoints"""
     
-    optimizer_params={'learning_rate': 0.1, 'momentum':0.9, 'wd':0.00001}
+#   optimizer_params={'learning_rate': 0.1, 'momentum':0.9, 'wd':0.00001}
+    optimizer_params={'learning_rate': 0.1, 'momentum':0.9}
+
     # Initialize network and trainer
     # net.initialize(mx.init.Xavier(magnitude=2.24), ctx=ctx) 
     net.collect_params().initialize(mx.init.Xavier(magnitude=2.24), ctx=ctx)
 
-    net.collect_params().reset_ctx(ctx)
+    # net.collect_params().reset_ctx(ctx)
     trainer = mx.gluon.Trainer(net.collect_params(), 'sgd', optimizer_params)
 
     # Performance improvement
@@ -336,6 +338,8 @@ def _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epo
     # Pick a metric
     # metric = mx.metric.Accuracy() # Returns scalars
     metric = CompositeEvalMetric([Accuracy(), TopKAccuracy(5)])  # Returns array
+
+    logger.info("Batch size : s%d" % (batch_size))
 
     for epoch in range(num_epochs):
         logger.info("Starting Epoch %d" % (epoch))
@@ -404,6 +408,7 @@ def train():
     # construct and initialize network.
     ctx = mx.gpu() if mx.context.num_gpus() else mx.cpu()
 
+    print(ctx)
     # performs the transformation on the data and returns the updated data set
     root = './trainingset'
     train_dir = os.path.join(root, 'train_data')
