@@ -1,0 +1,7 @@
+###### Requirements without Version Specifiers ######
+## pip install -r requirements.txt
+mxnet-cu90
+matplotlib
+
+###### Requirements with Version Specifiers ######`
+opencv-python >= 4.4.0.40
