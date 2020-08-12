@@ -190,7 +190,7 @@ def get_imagenet_transforms(data_shape=224, dtype='float32'):
             data = aug(data)
         # from (H x W x c) to (c x H x W)
         data = mx.nd.transpose(data, (2, 0, 1))
-
+ 
         # 0.1 range
         data = data.astype(np.float32)/255
         return data, mx.nd.array(([label])).asscalar().astype('float32')
