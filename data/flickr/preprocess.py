@@ -6,6 +6,8 @@ from mxnet.gluon import nn
 from mxnet.contrib.io import DataLoaderIter
 from mxnet.gluon.data import DataLoader
 from mxnet.gluon.data.vision import ImageFolderDataset
+from gluoncv.model_zoo import get_model
+
 import time
 import random
 import os
@@ -191,8 +193,9 @@ def get_imagenet_transforms(data_shape=224, dtype='float32'):
         # from (H x W x c) to (c x H x W)
         data = mx.nd.transpose(data, (2, 0, 1))
  
-        # 0.1 range
-        data = data.astype(np.float32)/255
+        # 0..1 range
+        data = data.astype('float32') / 255
+
         return data, mx.nd.array(([label])).asscalar().astype('float32')
 
     def val_transform(data, label):
@@ -254,7 +257,6 @@ def display(image_data):
         break
 
 
-
 def _get_batch_data(batch, ctx):
     """return data, label, batch size on ctx"""
     data, label = batch
@@ -273,28 +275,6 @@ def evaluate_accuracy(data_iterator, net, ctx):
             n += y.size
         acc.wait_to_read()  # copy from GPU to CPU
     return acc.asscalar() / n
-
-
-def get_gluon_network_128(class_numbers):
-    net = nn.HybridSequential()
-    with net.name_scope():
-        net.add(
-            nn.Flatten(),
-            nn.Dense(units=128, activation="relu"),
-            nn.Dense(units=64, activation="relu"),
-            nn.Dense(units=class_numbers)
-        )
-    return net
-
-def get_gluon_network_256(num_classes):
-    # construct a MLP
-    net = nn.HybridSequential()
-    with net.name_scope():
-        net.add(nn.Dense(256, activation="relu"))
-        net.add(nn.Dense(128, activation="relu"))
-        net.add(nn.Dense(num_classes))
-
-    return net
 
 def get_gluon_network_cnn(num_classes):
     cnn_net = mx.gluon.nn.Sequential()
@@ -458,7 +438,9 @@ def train():
     for i, (x, y) in enumerate(train_data):
         print("index : %s  :: %s x  %s" % (i, x.shape, y.shape))
 
-    net = get_gluon_network_cnn(28)
+    # Get the model ResNet50_v2
+    net = get_model('ResNet50_v2', classes=num_classes, ctx = ctx)
+    #net = get_gluon_network_cnn(num_classes)
     _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epochs, model_prefix='cnn', hybridize=False)
 
 if __name__ == "__main__":
