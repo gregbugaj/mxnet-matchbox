@@ -42,11 +42,11 @@ formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
 fh.setFormatter(formatter)
 
 # Dependency update
+# Build dependencies ar only requred on new system
 # python3 -m pip install --upgrade pip
-# python3 -m pip install --upgrade pip
-# python3 -m pip install  opencv-python
-# python3 -m pip install  python3 -m pip install  matplotlib
-
+# python3 -m pip install scikit-build
+# python3 -m pip install cmake
+# python3 -m pip install -r requirements.txt
 
 # Once the images are loaded, we need to ensure the images are of the same size.
 # We will resize all the images to be 224 * 224 pixels.
