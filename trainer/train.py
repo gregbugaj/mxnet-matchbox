@@ -11,6 +11,7 @@ from gluoncv.model_zoo import get_model
 import time
 import random
 import os
+import platform, subprocess, sys, os
 import argparse
 import cv2
 
@@ -61,123 +62,6 @@ train_augs = [
 val_test_augs = [
     mx.image.CenterCropAug((224, 224))
 ]
-
-
-def extractLogosToFolders():
-    print("Image training set segregation")
-    annotations = open(
-        'flickr_logos_27_dataset_training_set_annotation.txt', 'r')
-    count = 0
-
-    while True:
-        count += 1
-        line = annotations.readline()
-        if not line:
-            break
-
-        line = line.strip()
-        parts = line.split(" ")
-        print("Line {} : {} == {}".format(count, line, parts))
-
-        # 144503924.jpg  Adidas 1 38 12 234 142
-        # 2662264721.jpg RedBull 2 3 197 3 197
-        name = parts[0]
-        label = parts[1].lower()
-        clazz = int(parts[2])
-        x1 = int(parts[3])
-        y1 = int(parts[4])
-        x2 = int(parts[5])
-        y2 = int(parts[6])
-        w = x2 - x1
-        h = y2 - y1
-
-        print(parts)
-        print(" {} : {} ==  {} : {} ".format(x1, y1, x2, y2))
-        print(" {} : {} ".format(w, h))
-
-        # 2662264721.jpg RedBull 2 3 197 3 197
-        if w == 0 or h == 0:
-            continue
-
-        imagePath = os.path.join("./flickr_logos_27_dataset_images", name)
-        labelDir = os.path.join("./dataset", label)
-        imageDestName = os.path.join("./dataset", label, name)
-        if not os.path.exists(labelDir):
-            os.makedirs(labelDir)
-
-        img = cv2.imread(imagePath)
-        crop = img[y1:y1+h, x1:x1+w]
-
-        #cv2.imshow('Image', crop)
-        #cv2.waitKey(100)
-        print(imageDestName)
-        # print (img)
-        cv2.imwrite(imageDestName, crop)
-
-
-def copyfiles(files, srcDir, destDir):
-    if not os.path.exists(destDir):
-        os.makedirs(destDir)
-
-    for filename in files:
-        src = os.path.join(srcDir, filename)
-        dest = os.path.join(destDir, filename)
-        print("copy   > {} : {}".format(src, dest))
-        shutil.copy(src, dest)
-
-
-def separateTrainingSet():
-    print("Seperating traing set")
-
-    test_data = os.path.join("./trainingset", "test_data")
-    train_data = os.path.join("./trainingset", "train_data")
-    val_data = os.path.join("./trainingset", "val_data")
-
-    if not os.path.exists(test_data):
-        os.makedirs(test_data)
-    if not os.path.exists(train_data):
-        os.makedirs(train_data)
-    if not os.path.exists(val_data):
-        os.makedirs(val_data)
-
-    root = "./dataset"
-    classes = os.listdir(root)
-    classes.sort()
-    print("Classes : {}".format(classes))
-
-    for clazz in classes:
-
-        print(clazz)
-        clazzDir = os.path.join(root, clazz)
-        filenames = os.listdir(clazzDir)
-        #random.shuffle(filenames)
-        filenames.sort()
-
-        size = len(filenames)
-        validationSize = math.ceil(size * 0.3)  # 30 percent validation size
-        testSize = math.ceil(size * 0.1)  # 10 percent testing size
-        trainingSize = size - validationSize - testSize  # 60 percent training
-        print("Class >>  size/training/validation/test : {}, {}, {}, {}".format(size,
-                                                                                trainingSize, validationSize, testSize))
-        validation_files = filenames[:validationSize]
-        testing_files = filenames[validationSize:validationSize+testSize]
-        training_files = filenames[validationSize+testSize:]
-
-        print("Number of Validation Images : {}, {}".format(
-            len(validation_files), validation_files))
-        print("Number of Testing Images    : {}, {}".format(
-            len(testing_files), testing_files))
-        print("Number of Training Images   : {}, {}".format(
-            len(training_files), training_files))
-
-        trainSetData = os.path.join("./trainingset/train_data", clazz)
-        testSetData = os.path.join("./trainingset/test_data", clazz)
-        valSetData = os.path.join("./trainingset/val_data", clazz)
-
-        copyfiles(training_files, clazzDir, trainSetData)
-        copyfiles(validation_files, clazzDir, valSetData)
-        copyfiles(testing_files, clazzDir, testSetData)
-
 
 def get_imagenet_transforms(data_shape=224, dtype='float32'):
     def train_transform(data, label):
@@ -258,7 +142,6 @@ def display(image_data):
         show_images(X, 5, 8)
         break
 
-
 def _get_batch_data(batch, ctx):
     """return data, label, batch size on ctx"""
     data, label = batch
@@ -293,7 +176,6 @@ def get_gluon_network_cnn(num_classes):
         cnn_net.add(mx.gluon.nn.Dense(num_classes))
 
     return cnn_net
-
 
 def _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epochs, model_prefix, hybridize=False, learning_rate=0.1, wd=0.001):
     """Train model and genereate checkpoints"""
@@ -445,7 +327,82 @@ def train():
     #net = get_gluon_network_cnn(num_classes)
     _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epochs, model_prefix='cnn', hybridize=False)
 
+
+def get_build_features_str():
+    import mxnet.runtime
+    features = mxnet.runtime.Features()
+    return '\n'.join(map(str, list(features.values())))
+
+def check_mxnet():
+    print('----------MXNet Info-----------')
+    try:
+        import mxnet
+        print('Version      :', mxnet.__version__)
+        ctx = mx.gpu() if mx.context.num_gpus() else mx.cpu()
+        gpu = True if mx.context.num_gpus() else False
+        print('GPU Detected :', gpu)
+        print('Context      :', ctx)
+
+        mx_dir = os.path.dirname(mxnet.__file__)
+        print('Directory    :', mx_dir)
+        commit_hash = os.path.join(mx_dir, 'COMMIT_HASH')
+        if os.path.exists(commit_hash):
+            with open(commit_hash, 'r') as f:
+                ch = f.read().strip()
+                print('Commit Hash   :', ch)
+        else:
+            print('Commit hash file "{}" not found. Not installed from pre-built package or built from source.'.format(commit_hash))
+        print('Library      :', mxnet.libinfo.find_lib_path())
+        try:
+            print('Build features:')
+            print(get_build_features_str())
+        except Exception:
+            print('No runtime build feature info available')
+    except ImportError:
+        print('No MXNet installed.')
+    except Exception as e:
+        import traceback
+        if not isinstance(e, IOError):
+            print("An error occured trying to import mxnet.")
+            print("This is very likely due to missing missing or incompatible library files.")
+        print(traceback.format_exc())
+
+
+def check_hardware():
+    print('----------Hardware Info----------')
+    print('machine      :', platform.machine())
+    print('processor    :', platform.processor())
+    if sys.platform.startswith('darwin'):
+        pipe = subprocess.Popen(('sysctl', '-a'), stdout=subprocess.PIPE)
+        output = pipe.communicate()[0]
+        for line in output.split(b'\n'):
+            if b'brand_string' in line or b'features' in line:
+                print(line.strip())
+    elif sys.platform.startswith('linux'):
+        subprocess.call(['lscpu'])
+    elif sys.platform.startswith('win32'):
+        subprocess.call(['wmic', 'cpu', 'get', 'name'])
+
+def parse_args():
+    """Parse arguments."""
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter, description='Matchbox trainging system')
+        
+    #parser.add_argument('--region', default='', type=str, help="Additional sites in which region(s) to test. Specify 'cn' for example to test mirror sites in China.")
+    parser.add_argument('--diagnose', default='mxnet', type=str, help='Diagnose mxnet/hardware')
+    parser.add_argument('--train', default='', type=str, help='Train the network')
+    args = parser.parse_args()
+    return args
+
 if __name__ == "__main__":
-    #extractLogosToFolders()
-    #separateTrainingSet()
-    train()
+    args = parse_args()
+    
+    if args.train:
+        train()
+
+    if args.diagnose == 'mxnet':
+        check_mxnet()
+    
+    if args.diagnose == 'hardware':
+        check_hardware()
+    
+    
