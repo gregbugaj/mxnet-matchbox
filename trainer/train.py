@@ -385,11 +385,12 @@ def check_hardware():
 
 def parse_args():
     """Parse arguments."""
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter, description='Matchbox trainging system')
-        
-    #parser.add_argument('--region', default='', type=str, help="Additional sites in which region(s) to test. Specify 'cn' for example to test mirror sites in China.")
+    parser = argparse.ArgumentParser(description='Train a Single-shot detection network')
     parser.add_argument('--diagnose', default='mxnet', type=str, help='Diagnose mxnet/hardware')
+    
     parser.add_argument('--train', default='', type=str, help='Train the network')
+    parser.add_argument('--data-path', dest='data_path', help='data directory to use',default=os.path.join(os.getcwd(), 'data'), type=str)
+                        
     args = parser.parse_args()
     return args
 

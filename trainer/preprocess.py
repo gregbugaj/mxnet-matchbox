@@ -24,22 +24,7 @@ from os import walk
 from time import time
 import matplotlib.pyplot as plt
 
-import logging
 import tarfile
-logging.basicConfig(level=logging.INFO)
-
-
-# logging
-logging.basicConfig(level=logging.INFO)
-fh = logging.FileHandler('image-classification.log')
-logger = logging.getLogger()
-logger.addHandler(fh)
-formatter = logging.Formatter('%(message)s')
-fh.setFormatter(formatter)
-fh.setLevel(logging.DEBUG)
-logging.debug('\n%s', '-' * 100)
-formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
-fh.setFormatter(formatter)
 
 # Dependency update
 # Build dependencies ar only requred on new system
@@ -48,25 +33,9 @@ fh.setFormatter(formatter)
 # python3 -m pip install cmake
 # python3 -m pip install -r requirements.txt
 
-# Once the images are loaded, we need to ensure the images are of the same size.
-# We will resize all the images to be 224 * 224 pixels.
-# Let’s flip 50% of the training data set horizontally and crop them to 224 * 224 pixels
-train_augs = [
-    mx.image.HorizontalFlipAug(.5),
-    mx.image.RandomCropAug((224, 224))
-]
-
-# For the validation and test data sets, let’s center crop to get each image to 224 224.
-# All the images in the train, test, and validation data sets will now be of 224 224 size.
-val_test_augs = [
-    mx.image.CenterCropAug((224, 224))
-]
-
-
 def extractLogosToFolders():
     print("Image training set segregation")
-    annotations = open(
-        'flickr_logos_27_dataset_training_set_annotation.txt', 'r')
+    annotations = open('flickr_logos_27_dataset_training_set_annotation.txt', 'r')
     count = 0
 
     while True:
@@ -179,58 +148,8 @@ def separateTrainingSet():
         copyfiles(testing_files, clazzDir, testSetData)
 
 
-def get_imagenet_transforms(data_shape=224, dtype='float32'):
-    def train_transform(data, label):
-        data = data.astype('float32')
-        augs = [
-            mx.image.HorizontalFlipAug(.5),
-            mx.image.RandomCropAug((224, 224))
-        ]
-        for aug in augs:
-            data = aug(data)
-        # from (H x W x c) to (c x H x W)
-        data = mx.nd.transpose(data, (2, 0, 1))
- 
-        # Normalzie 0..1 range
-        data = data.astype('float32') / 255
-
-        return data, mx.nd.array(([label])).asscalar().astype('float32')
-
-    def val_transform(data, label):
-        data = data.astype('float32')
-        augs = [
-            mx.image.CenterCropAug((224, 224))
-        ]
-        for aug in augs:
-            data = aug(data)
-        # from (H x W x c) to (c x H x W)
-        data = mx.nd.transpose(data, (2, 0, 1))
-
-        # Normalzie 0..1 range
-        data = data.astype('float32') / 255
-
-        return data, mx.nd.array(([label])).asscalar().astype('float32')
-
-    def __train_transform(image, label):
-        image, _ = mx.image.random_size_crop(image, (data_shape, data_shape), 0.08, (3/4., 4/3.))
-        image = mx.nd.image.random_flip_left_right(image)
-        image = mx.nd.image.to_tensor(image)
-        image = mx.nd.image.normalize(image, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
-            
-        return mx.nd.cast(image, dtype), label
-
-    def __val_transform(image, label):
-        image = mx.image.resize_short(image, data_shape + 32)
-        image, _ = mx.image.center_crop(image, (data_shape, data_shape))
-        image = mx.nd.image.to_tensor(image)
-        image = mx.nd.image.normalize(image, mean=(
-            0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
-        return mx.nd.cast(image, dtype), label
-
-    return train_transform, val_transform, val_transform
-
-
 def imageInfo(srcImage):
+    """show image info"""
     print("image : {}".format(srcImage))
     img = cv2.imread(srcImage)
     cv2.imshow('Image', img)
