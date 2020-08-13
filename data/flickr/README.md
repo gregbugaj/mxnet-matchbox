@@ -37,3 +37,14 @@ https://github.com/apache/incubator-mxnet/issues/9612
 
 ## Tensorboard  
 https://discuss.mxnet.io/t/cannot-train-custom-object-detector-when-using-mxnet-mkl/6101/3
+
+
+## WSL 
+Prequisites
+https://docs.microsoft.com/en-us/windows/wsl/install-win10
+https://docs.microsoft.com/en-us/windows/wsl/install-win10#update-to-wsl-2
+
+### Troubleshooting
+
+https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html
+https://stackoverflow.com/questions/58127401/libcudart-so-9-0-cannot-open-shared-object-file-no-such-file-or-directory
