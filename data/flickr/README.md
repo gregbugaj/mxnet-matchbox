@@ -30,6 +30,10 @@ https://sisyphus.gitbook.io/project/deep-learning-basics/basics/regularizations
 
 https://www.kdnuggets.com/2018/12/implementing-resnet-mxnet-gluon-comet-ml-image-classification.html/2
 
+
 ## Issues
 CUDNN_STATUS_SUCCESS (4 vs. 0) cuDNN: CUDNN_STATUS_INTERNAL_ERROR
 https://github.com/apache/incubator-mxnet/issues/9612
+
+## Tensorboard  
+https://discuss.mxnet.io/t/cannot-train-custom-object-detector-when-using-mxnet-mkl/6101/3

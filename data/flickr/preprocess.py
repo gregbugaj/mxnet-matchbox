@@ -41,13 +41,11 @@ logging.debug('\n%s', '-' * 100)
 formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
 fh.setFormatter(formatter)
 
-
 # Dependency update
+# python3 -m pip install --upgrade pip
 # python3 -m pip install --upgrade pip
 # python3 -m pip install  opencv-python
 # python3 -m pip install  python3 -m pip install  matplotlib
-# Notes :
-# https://mxnet.apache.org/api/python/docs/tutorials/packages/gluon/data/datasets.html
 
 
 # Once the images are loaded, we need to ensure the images are of the same size.
@@ -252,7 +250,7 @@ def display(image_data):
     # Now, display the first 32 images in a 8 * 4 grid:
     for X, _ in image_data:
         # from (B x c x H x W) to (Bx H x W x c)
-        X = X.transpose((0, 2, 3, 1)).clip(0, 255)/255
+        X = X.transpose((0, 2, 3, 1)).clip(0, 255) / 255
         show_images(X, 5, 8)
         break
 
