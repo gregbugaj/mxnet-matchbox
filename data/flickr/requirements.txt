@@ -2,7 +2,8 @@
 ## pip install -r requirements.txt
 matplotlib
 opencv-python >= 4.4.0.40
-mxnet-cu100
+# mxnet-cu100
+mxnet-cu90
 
 ###### Requirements with Version Specifiers ######`
 # if you are eager to try new features, try nightly build instead
