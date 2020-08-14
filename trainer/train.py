@@ -76,7 +76,7 @@ def get_imagenet_transforms(data_shape=224, dtype='float32'):
         data = mx.nd.transpose(data, (2, 0, 1))
  
         # Normalzie 0..1 range
-        data = data.astype('float32') / 255
+        data = data.astype('float32') / 255.0
 
         return data, mx.nd.array(([label])).asscalar().astype('float32')
 
@@ -91,8 +91,7 @@ def get_imagenet_transforms(data_shape=224, dtype='float32'):
         data = mx.nd.transpose(data, (2, 0, 1))
 
         # Normalzie 0..1 range
-        data = data.astype('float32') / 255
-
+        # data = data.astype('float32') / 255.0
         return data, mx.nd.array(([label])).asscalar().astype('float32')
 
     def __train_transform(image, label):
@@ -185,7 +184,7 @@ def _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epo
     # Data Iterators require call to `reset` during trainging 
 
     # train_data = DataLoaderIter(train_dataXX)
-    optimizer_params={'learning_rate': 0.01, 'momentum':0.9, 'wd':0.00001}
+    optimizer_params={'learning_rate': 0.1, 'momentum':0.9, 'wd':0.00001}
     # Initialize network and trainer
     net.initialize(mx.init.Xavier(magnitude=2.24), ctx=ctx) 
     # net.collect_params().initialize(mx.init.Xavier(magnitude=2.24), ctx=ctx) # This causes the model to explode with NAN for the loss
@@ -193,8 +192,8 @@ def _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epo
     net.collect_params().reset_ctx(ctx)
 
     # net.collect_params().reset_ctx(ctx)
-    # trainer = mx.gluon.Trainer(net.collect_params(), 'sgd', optimizer_params)
-    trainer = gluon.Trainer(net.collect_params(), 'adam', {'learning_rate': 1E-3})
+    trainer = mx.gluon.Trainer(net.collect_params(), 'sgd', optimizer_params)
+    # trainer = gluon.Trainer(net.collect_params(), 'adam', {'learning_rate': 1E-3})
     # trainer = mx.gluon.Trainer(net.collect_params(), 'sgd', optimizer_params)
 
     # Performance improvement
@@ -270,7 +269,7 @@ def _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epo
         metric.reset() # end of epoch
 
 
-def train():
+def train(data_dir):
     print("Training")
     mx.random.seed(42)  # Fix the seed for reproducibility
  
@@ -281,10 +280,10 @@ def train():
 
     # construct and initialize network.
     ctx = mx.gpu() if mx.context.num_gpus() else mx.cpu()
-
     print(ctx)
+
     # performs the transformation on the data and returns the updated data set
-    root = './trainingset'
+    root = data_dir
     train_dir = os.path.join(root, 'train_data')
     test_dir = os.path.join(root, 'test_data')
     val_dir = os.path.join(root, 'val_data')
@@ -323,8 +322,10 @@ def train():
         print("index : %s  :: %s x  %s" % (i, x.shape, y.shape))
 
     # Get the model ResNet50_v2
-    net = get_model('ResNet50_v2', classes=num_classes, ctx = ctx)
-    #net = get_gluon_network_cnn(num_classes)
+    # net = get_model('ResNet50_v2', classes=num_classes, ctx = ctx)
+    # net = get_model('AlexNet', classes=num_classes, ctx = ctx)
+    net = get_gluon_network_cnn(num_classes)
+    print(net)
     _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epochs, model_prefix='cnn', hybridize=False)
 
 
@@ -385,20 +386,47 @@ def check_hardware():
 
 def parse_args():
     """Parse arguments."""
-    parser = argparse.ArgumentParser(description='Train a Single-shot detection network')
-    parser.add_argument('--diagnose', default='mxnet', type=str, help='Diagnose mxnet/hardware')
-    
-    parser.add_argument('--train', default='', type=str, help='Train the network')
-    parser.add_argument('--data-path', dest='data_path', help='data directory to use',default=os.path.join(os.getcwd(), 'data'), type=str)
-                        
+    parser = argparse.ArgumentParser(
+        prog='train',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        description='Train Classifier or Single-shot detection network')
+    parser.add_argument('--diagnose', default=['mxnet', 'hardware'], type=str, 
+                        help='Diagnose mxnet/hardware')
+    parser.add_argument('--train', default=['classifier', 'detector'], type=str, 
+                        help='Train the network [classifier|detector]')
+    parser.add_argument('--data-dir', dest='data_dir', 
+                        help='data directory to use', default=os.path.join(os.getcwd(), 'data'), type=str)
+    parser.add_argument('--batch-size', type=int, default=64,
+                        help='batch size for training and testing (default: 100)')
+    parser.add_argument('--epochs', type=int, default=10,
+                        help='number of epochs to train (default: 10)')
+    parser.add_argument('--lr', type=float, default=0.1,
+                        help='learning rate (default: 0.1)')
+    parser.add_argument('--momentum', type=float, default=0.9,
+                        help='SGD momentum (default: 0.9)')
+    parser.add_argument('--gpu',  default=False,
+                        help='Train on GPU with CUDA')
     args = parser.parse_args()
     return args
 
 if __name__ == "__main__":
     args = parse_args()
-    
-    if args.train:
-        train()
+
+    if args.train == 'detector':
+        epochs = args.epochs
+        batch_size = args.batch_size
+        lr = args.lr
+        momentum = args.momentum
+        data_dir = os.path.abspath(args.data_dir)
+        print(args)
+        print(data_dir)
+        print('----- Hyperparameters -----')
+        print('epochs     : %s' %(epochs))
+        print('batch_size : %s' %(batch_size))
+        print('lr         : %s' %(lr))
+        print('momentum   : %s' %(momentum))
+        
+        train(data_dir)
 
     if args.diagnose == 'mxnet':
         check_mxnet()
