@@ -72,11 +72,12 @@ def get_imagenet_transforms(data_shape=224, dtype='float32'):
         ]
         for aug in augs:
             data = aug(data)
-        # from (H x W x c) to (c x H x W)
+        # from (H x W x c) to (c x H x W
         data = mx.nd.transpose(data, (2, 0, 1))
- 
+
         # Normalzie 0..1 range
-        data = data.astype('float32') / 255.0
+        # data = data.astype('float32') / 255.0
+        # data = mx.nd.image.to_tensor(data)
 
         return data, mx.nd.array(([label])).asscalar().astype('float32')
 
@@ -136,7 +137,7 @@ def display(image_data):
     """display images"""
     # Now, display the first 32 images in a 8 * 4 grid:
     for X, _ in image_data:
-        # from (B x c x H x W) to (Bx H x W x c)
+        # from (B x c x H x W) to (B x H x W x c)
         X = X.transpose((0, 2, 3, 1)).clip(0, 255) / 255
         show_images(X, 5, 8)
         break
@@ -182,7 +183,6 @@ def _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epo
         ctx = [ctx]
 
     # Data Iterators require call to `reset` during trainging 
-
     # train_data = DataLoaderIter(train_dataXX)
     optimizer_params={'learning_rate': 0.1, 'momentum':0.9, 'wd':0.00001}
     # Initialize network and trainer
@@ -209,7 +209,7 @@ def _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epo
     # Pick a metric
     # metric = mx.metric.Accuracy() # Returns scalars
     metric = CompositeEvalMetric([Accuracy(), TopKAccuracy(5)])  # Returns array
-    logger.info("Batch size : s%d" % (batch_size))
+    logger.info("Batch size : %d" % (batch_size))
 
     for epoch in range(num_epochs):
         logger.info("Starting Epoch %d" % (epoch))
