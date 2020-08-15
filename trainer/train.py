@@ -1,12 +1,13 @@
 from mxnet import autograd as ag
 import mxnet as mx
-from mxnet.metric import Accuracy, TopKAccuracy, CompositeEvalMetric
 from mxnet import nd, gluon, init, autograd
 from mxnet.gluon import nn
 from mxnet.contrib.io import DataLoaderIter
 from mxnet.gluon.data import DataLoader
 from mxnet.gluon.data.vision import ImageFolderDataset
 from gluoncv.model_zoo import get_model
+
+# from mxnet.metric import Accuracy, TopKAccuracy, CompositeEvalMetric
 
 import time
 import random
@@ -51,13 +52,13 @@ fh.setFormatter(formatter)
 
 # Once the images are loaded, we need to ensure the images are of the same size.
 # We will resize all the images to be 224 * 224 pixels.
-# Let’s flip 50% of the training data set horizontally and crop them to 224 * 224 pixels
+# Let's flip 50% of the training data set horizontally and crop them to 224 * 224 pixels
 train_augs = [
     mx.image.HorizontalFlipAug(.5),
     mx.image.RandomCropAug((224, 224))
 ]
 
-# For the validation and test data sets, let’s center crop to get each image to 224 224.
+# For the validation and test data sets, let's center crop to get each image to 224 224.
 # All the images in the train, test, and validation data sets will now be of 224 224 size.
 val_test_augs = [
     mx.image.CenterCropAug((224, 224))
