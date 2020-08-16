@@ -13,6 +13,11 @@ Running diagnostics for `mxnet` and `hardware`
  python ./train.py --diagnose hardware
 ```
 
+## cleanup
+```
+ps aux | grep python | awk '{print $2}' | xargs kill
+```
+
 ## Training
 
 Usage

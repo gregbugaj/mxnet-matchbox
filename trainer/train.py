@@ -1,14 +1,15 @@
+
 from mxnet import autograd as ag
-import mxnet as mx
 from mxnet import nd, gluon, init, autograd
 from mxnet.gluon import nn
 from mxnet.contrib.io import DataLoaderIter
 from mxnet.gluon.data import DataLoader
 from mxnet.gluon.data.vision import ImageFolderDataset
-from gluoncv.model_zoo import get_model
-
+#from gluoncv.model_zoo import get_model
+from mxnet.gluon.metric import Accuracy, TopKAccuracy, CompositeEvalMetric
 # from mxnet.metric import Accuracy, TopKAccuracy, CompositeEvalMetric
 
+import mxnet as mx
 import time
 import random
 import os
@@ -77,7 +78,7 @@ def get_imagenet_transforms(data_shape=224, dtype='float32'):
         data = mx.nd.transpose(data, (2, 0, 1))
 
         # Normalzie 0..1 range
-        # data = data.astype('float32') / 255.0
+        data = data.astype('float32') / 255.0
         # data = mx.nd.image.to_tensor(data)
 
         return data, mx.nd.array(([label])).asscalar().astype('float32')
@@ -93,7 +94,7 @@ def get_imagenet_transforms(data_shape=224, dtype='float32'):
         data = mx.nd.transpose(data, (2, 0, 1))
 
         # Normalzie 0..1 range
-        # data = data.astype('float32') / 255.0
+        data = data.astype('float32') / 255.0
         return data, mx.nd.array(([label])).asscalar().astype('float32')
 
     def __train_transform(image, label):
@@ -146,10 +147,9 @@ def display(image_data):
 def _get_batch_data(batch, ctx):
     """return data, label, batch size on ctx"""
     data, label = batch
-    return (mx.gluon.utils.split_and_load(data, ctx),
-            mx.gluon.utils.split_and_load(label, ctx),
+    return (mx.gluon.utils.split_and_load(data, ctx, batch_axis=0),
+            mx.gluon.utils.split_and_load(label, ctx, batch_axis=0),
             data.shape[0])
-
 
 def evaluate_accuracy(data_iterator, net, ctx):
     acc = mx.nd.array([0])
@@ -163,43 +163,45 @@ def evaluate_accuracy(data_iterator, net, ctx):
     return acc.asscalar() / n
 
 def get_gluon_network_cnn(num_classes):
-    cnn_net = mx.gluon.nn.Sequential()
-    with cnn_net.name_scope():
-        #  First convolutional layer
-        cnn_net.add(mx.gluon.nn.Conv2D(channels=96, kernel_size=11, strides=(4,4), activation='relu'))
-        cnn_net.add(mx.gluon.nn.MaxPool2D(pool_size=3, strides=2))
-        #  Second convolutional layer
-        cnn_net.add(mx.gluon.nn.Conv2D(channels=192, kernel_size=5, activation='relu'))
-        cnn_net.add(mx.gluon.nn.MaxPool2D(pool_size=3, strides=(2,2)))
-        # Flatten and apply fullly connected layers
-        cnn_net.add(mx.gluon.nn.Flatten())
-        cnn_net.add(mx.gluon.nn.Dense(4096, activation="relu"))
-        cnn_net.add(mx.gluon.nn.Dense(num_classes))
+    net = mx.gluon.nn.HybridSequential()
+    #  First convolutional layer
+    net.add(mx.gluon.nn.Conv2D(channels=96, kernel_size=11, strides=(4,4), activation='relu'))
+    net.add(mx.gluon.nn.MaxPool2D(pool_size=3, strides=2))
+    #  Second convolutional layer
+    net.add(mx.gluon.nn.Conv2D(channels=192, kernel_size=5, activation='relu'))
+    net.add(mx.gluon.nn.MaxPool2D(pool_size=3, strides=(2,2)))
+    # Flatten and apply fullly connected layers
+    net.add(mx.gluon.nn.Flatten())
+    net.add(mx.gluon.nn.Dense(4096, activation="relu"))
+    net.add(mx.gluon.nn.Dense(num_classes))
 
-    return cnn_net
+    return net
 
-def _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epochs, model_prefix, hybridize=False, learning_rate=0.1, wd=0.001):
+def _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epochs, model_prefix, hybridize=False, learning_rate=0.01, wd=0.00001, momentum=0.9):
     """Train model and genereate checkpoints"""
     if isinstance(ctx, mx.Context):
         ctx = [ctx]
 
+    epochs = num_epochs
     # Data Iterators require call to `reset` during trainging 
-    # train_data = DataLoaderIter(train_dataXX)
-    optimizer_params={'learning_rate': 0.1, 'momentum':0.9, 'wd':0.00001}
     # Initialize network and trainer
-    net.initialize(mx.init.Xavier(magnitude=2.24), ctx=ctx) 
+    net.initialize(mx.init.Xavier(), ctx=ctx) 
+    # net.initialize(mx.init.Normal(), ctx=ctx)
+
     # net.collect_params().initialize(mx.init.Xavier(magnitude=2.24), ctx=ctx) # This causes the model to explode with NAN for the loss
     # net.collect_params().initialize(mx.init.Normal(sigma=0.01), ctx=ctx)
-    net.collect_params().reset_ctx(ctx)
-
     # net.collect_params().reset_ctx(ctx)
-    trainer = mx.gluon.Trainer(net.collect_params(), 'sgd', optimizer_params)
+
     # trainer = gluon.Trainer(net.collect_params(), 'adam', {'learning_rate': 1E-3})
+    # optimizer_params={'learning_rate': 0.01, 'momentum':0.9, 'wd':0.00001}
     # trainer = mx.gluon.Trainer(net.collect_params(), 'sgd', optimizer_params)
 
     # Performance improvement
     if hybridize == True:
         net.hybridize(static_alloc=True, static_shape=True)
+
+    for p in net.collect_params().values():
+        p.reset_ctx(ctx)
 
     # loss function we will use in our training loop
     loss_fn = mx.gluon.loss.SoftmaxCrossEntropyLoss()
@@ -208,22 +210,39 @@ def _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epo
     best_acc = 0.0
 
     # Pick a metric
-    # metric = mx.metric.Accuracy() # Returns scalars
-    metric = CompositeEvalMetric([Accuracy(), TopKAccuracy(5)])  # Returns array
-    logger.info("Batch size : %d" % (batch_size))
+    metric = Accuracy() # Returns scalars
+    num_batch = len(train_data)
 
-    for epoch in range(num_epochs):
+    lr_factor = 0.75
+    # learning rate change at following epochs
+    lr_epochs = [10, 20, 30, 40, 50, 60, 70, 80, 90, np.inf]
+    # setup learning rate scheduler
+    iterations_per_epoch = math.ceil(num_batch)
+    # learning rate change at following steps
+    lr_steps = [epoch * iterations_per_epoch for epoch in lr_epochs]
+    schedule = mx.lr_scheduler.MultiFactorScheduler(step=lr_steps, factor=lr_factor, base_lr=learning_rate)
+
+    # learning_rate=0.01, wd=0.00001, momentum=0.9
+    # setup optimizer with learning rate scheduler, metric, and loss function
+    sgd_optimizer = mx.optimizer.SGD(learning_rate=learning_rate, lr_scheduler=schedule, momentum=momentum, wd=wd)
+    trainer = gluon.Trainer(net.collect_params(), optimizer=sgd_optimizer)
+
+    # optimizer_params={'learning_rate': 0.01, 'momentum':0.9, 'wd':0.00001}
+    # trainer = mx.gluon.Trainer(net.collect_params(), 'sgd', optimizer_params)
+
+    # metric = CompositeEvalMetric([Accuracy(), TopKAccuracy(5)])  # Returns array
+    logger.info("Batch size : %d" % (batch_size))
+    logger.info("Batch total : %d" % (num_batch))
+
+    # start with epoch 1 for easier learning rate calculation
+    for epoch in range(1, epochs + 1):
         logger.info("Starting Epoch %d" % (epoch))
         tic = time()
-#        train_data.reset()
         #train_data.reset() # If running as iterator
-        btic = time()
-        start = time()
-
         train_loss, train_acc, n = 0.0, 0.0, 0.0
+        btic = time()
         for i, batch in enumerate(train_data):
             data, label, batch_size = _get_batch_data(batch, ctx)
-            # print('batch.data[0] : %s' % (batch.data[0].shape[0]))
             outputs = []
             losses = []
 
@@ -235,49 +254,67 @@ def _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epo
                     # on all GPUs for better speed on multiple GPUs.
                     losses.append(L)
                     outputs.append(z)
-                    print('   loss[L] : %s' % (L))
-
+                    # print('   loss[L] : %s' % (L))
             for l in losses:
                 l.backward()
 
             trainer.step(batch_size)
-            train_loss += sum([l.sum().asscalar() for l in losses])
-
+            train_loss += sum([l.mean().asscalar() for l in losses]) / len(losses)
             n += batch_size
             metric.update(label, outputs) # update the metrics # end of mini-batc
+            btic = time()
             print('train_loss: %s' % (train_loss))
-
+    
+        train_loss /= num_batch
         print('Total train_loss: %s' % (train_loss))
         name, acc = metric.get()
+
         train_acc = evaluate_accuracy(train_data, net, ctx)
         val_acc = evaluate_accuracy(val_data, net, ctx)
         test_acc = evaluate_accuracy(test_data, net, ctx)
+ 
+        epoch_time = time()-tic
+        speed = batch_size/(time()-btic)
+        
+        logger.info('Epoch[%d] Batch [%d]\tSpeed: %f samples/sec\t%s=%.6f, learning-rate: %.6f\tTrain acc %.6f, Val acc %.6f, Test acc %.6f' % (
+             epoch, i, speed, name, acc, trainer.learning_rate, train_acc, val_acc, test_acc))
 
-        logger.info('Epoch[%d] Batch [%d]\tSpeed: %f samples/sec\t%s=%.6f, %s=%.6f\tTrain acc %.6f, Val acc %.6f, Test acc %.6f' % (
-            epoch, i, batch_size/(time()-btic), name[0], acc[0], name[1], acc[1], train_acc, val_acc, test_acc))
+        logger.info('[Epoch %d] time cost: %f'%(epoch, epoch_time))
 
         btic = time()
-
         if val_acc > best_acc:
             best_acc = val_acc
             if best_epoch != -1:
                 print('Deleting previous checkpoint...')
-                os.remove(model_prefix+'-%d.params' % (best_epoch))
+                fname = os.path.join('params', '%s-%d.params' % (model_prefix, best_epoch))
+                if os.path.isfile(fname):
+                     os.remove(fname)
+                
             best_epoch = epoch
             print('Best validation accuracy found. Checkpointing...')
-            net.collect_params().save(model_prefix+'-%d.params' % (epoch))
+            fname = os.path.join('params', '%s-%d-%f.params' % (model_prefix, best_epoch, val_acc))
+            net.save_parameters(fname)
+            logger.info('[Epoch %d] Saving checkpoint to %s with Accuracy: %.4f', epoch, fname, val_acc)
 
         metric.reset() # end of epoch
+
+    # Save the tuned model
+    # There are some important distinctions between `net.save_parameters(file_name)` and `net.export(file_name)`
+    # https://github.com/apache/incubator-mxnet/blob/master/docs/python_docs/python/tutorials/packages/gluon/blocks/naming.md
+    file_name = "net"
+    net.export(file_name)
+
+    print('Network save : %s' % (file_name))
 
 
 def train(data_dir):
     print("Training")
     mx.random.seed(42)  # Fix the seed for reproducibility
- 
+
     # Define the **hyperparameters** for the model
-    batch_size = 64
-    num_classes = 28
-    num_epochs = 20
+    batch_size = 32
+    num_classes = 27 + 1 # 27 labeled categories +1 no-classifcation
+    num_epochs = 100
 
     # construct and initialize network.
     ctx = mx.gpu() if mx.context.num_gpus() else mx.cpu()
@@ -294,8 +331,7 @@ def train(data_dir):
 
     #logging.info("Loading image folder %s, this may take a bit long...", train_dir)
     train_dataset = ImageFolderDataset(train_dir)
-    train_data = DataLoader(train_dataset.transform(
-        train_transform), batch_size, shuffle=True, last_batch='discard', num_workers=4)
+    train_data = DataLoader(train_dataset.transform(train_transform), batch_size, shuffle=True, last_batch='discard', num_workers=4)
 
     #logging.info("Loading image folder %s, this may take a bit long...", val_dir)
     val_dataset = ImageFolderDataset(val_dir)
@@ -323,12 +359,19 @@ def train(data_dir):
         print("index : %s  :: %s x  %s" % (i, x.shape, y.shape))
 
     # Get the model ResNet50_v2
-    # net = get_model('ResNet50_v2', classes=num_classes, ctx = ctx)
-    # net = get_model('AlexNet', classes=num_classes, ctx = ctx)
+    # net = get_resnet('ResNet50_v2', classes=num_classes, ctx = ctx)
     net = get_gluon_network_cnn(num_classes)
-    print(net)
-    _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epochs, model_prefix='cnn', hybridize=False)
 
+    # Alexnet
+    # This requries 'init.normal'
+    # net = mx.gluon.model_zoo.vision.alexnet(classes=num_classes, ctx = ctx)
+
+    # Resnet 
+    # net = mx.gluon.model_zoo.vision.get_resnet(1, 18, ctx = ctx)
+    # net.output = mx.gluon.nn.Dense(num_classes)
+
+    print(net)
+    _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epochs, model_prefix='cnn', hybridize=True)
 
 def get_build_features_str():
     import mxnet.runtime
