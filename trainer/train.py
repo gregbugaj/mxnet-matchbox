@@ -91,7 +91,7 @@ def get_imagenet_transforms(data_shape=224, dtype='float32'):
         for aug in augs:
             data = aug(data)
         # from (H x W x c) to (c x H x W)
-        data = mx.nd.transpose(data, (2, 0, 1))
+        data = mx.nd.transpose(data, (2, 0, 1)) 
 
         # Normalzie 0..1 range
         data = data.astype('float32') / 255.0
@@ -303,8 +303,7 @@ def _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epo
     # https://github.com/apache/incubator-mxnet/blob/master/docs/python_docs/python/tutorials/packages/gluon/blocks/naming.md
     file_name = "net"
     net.export(file_name)
-
-    print('Network save : %s' % (file_name))
+    print('Network saved : %s' % (file_name))
 
 
 def train(data_dir):

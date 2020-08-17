@@ -20,9 +20,8 @@ def val_transform(data):
     # Normalzie 0..1 range
     return data.astype('float32') / 255.0
 
-
-def evaluate():    
-    print ('evaluate')
+def evaluate(image_path):    
+    print ('evaluating :" %s' %(image_path))
     # load synset for label names
     with open('synset.txt', 'r') as f:
         labels = [l.rstrip() for l in f]
@@ -37,16 +36,13 @@ def evaluate():
     
     print(net)
     # load an image for prediction
-    img = mx.image.imread('../data/flickr/dataset/adidas/4761260517.jpg')
-    img = mx.image.imread('../data/flickr/dataset/vodafone/258770610.jpg')
-    img = mx.image.imread('../data/flickr/dataset/sprite/2149071419.jpg')
-    img = mx.image.imread('../data/flickr/dataset/yahoo/4682534504.jpg')
+    img = mx.image.imread(image_path)
 
     print(img.shape)
     # apply transform we did during training
     data = val_transform(img)
     print(data.shape)
-    
+
     # Exand shape into (B x H x W x c)
     data = mx.ndarray.expand_dims(data, axis=0)
     print(data.shape)
@@ -57,16 +53,22 @@ def evaluate():
     prob = out[0][pred].asscalar()
 
     print('With prob=%f, %s' %(prob, labels[pred]))
-    
+
+def parse_args():
+    """Parse arguments."""
+    parser = argparse.ArgumentParser(prog='eval',description='Network evaluation')
+    parser.add_argument('--src', type=str, help='Image source',  required=True)
+    args = parser.parse_args()
+    return args
 
 if __name__ == '__main__':
-    print('Evalute network')
-    
+    print('Network evaluation')
+    args = parse_args()
+
     img = mx.random.uniform(0, 255, (300, 300, 3)).astype('uint8')
     print(img.shape)
     img = val_transform(img)
     print(img.shape)
     img = mx.ndarray.expand_dims(img, axis=0)
     print(img.shape)
-    
-    evaluate()
+    evaluate(image_path = args.src)  

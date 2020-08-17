@@ -56,9 +56,19 @@ folder
             -- img_0002.png
 ```
 
-## glueon-cv version patch
 
-Patched version of `glueon-cv`
+## Evaluation
+```
+    python ./evaluate.py --src ../data/flickr/dataset/yahoo/4682534504.jpg
+```
+
+
+
+## gluon-cv version patch
+
+This is not needed if using latest version of mxnet build from source
+
+Patched version of `gluon-cv`
 
 Small patch here to allow using of version 2.0.0 of mxnet as I am building mxnet localy and not using binary-package.
 

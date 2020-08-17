@@ -18,9 +18,11 @@ Project has following dependencies
 
 ## Building
 
+
 ## Creating 
 
 # Minist as JPG
+
 https://www.kaggle.com/scolianni/mnistasjpg
 https://stats.stackexchange.com/questions/166600/mnist-dataset-black-or-white-background
 https://www.kaggle.com/scolianni/mnistasjpg
@@ -30,6 +32,8 @@ https://github.com/zalandoresearch/fashion-mnist
 https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=95651665
 https://mxnet.apache.org/api/python/docs/tutorials/packages/gluon/image/mnist.html
 https://stackoverflow.com/questions/39293922/convert-between-opencv-mat-and-leptonica-pix#39293974
+https://gluon.mxnet.io/chapter14_generative-adversarial-networks/pixel2pixel.html
+
 
 Multi-channel images 
     https://stackoverflow.com/questions/55297514/mxnet-c-inference-with-mxpredsetinput-segmentation-fault
@@ -41,4 +45,6 @@ computing mean image
 
 # Network visualization 
 https://lutzroeder.github.io/netron/
+
+
 
