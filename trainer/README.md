@@ -14,8 +14,9 @@ Running diagnostics for `mxnet` and `hardware`
 ```
 
 ## cleanup
+
 ```
-ps aux | grep python | awk '{print $2}' | xargs kill
+ps aux | grep 'detector' | awk '{print $2}' | xargs kill
 ```
 
 ## Training
@@ -25,6 +26,21 @@ Usage
 ```bash
 python ./train.py --train detector --data-dir ../data/flickr/trainingset
 ```
+
+Setup `tesnsorboard`
+
+```bash
+python -m pip install tensorboard
+```
+
+Start tensorboard
+
+```bash
+tensorboard --logdir logs/fit
+
+tensorboard --logdir=./logs --host=127.0.0.1 --port=8888
+```
+
 
 ### Training / Test / Validation folder structure.
 
@@ -58,11 +74,10 @@ folder
 
 
 ## Evaluation
+
 ```
     python ./evaluate.py --src ../data/flickr/dataset/yahoo/4682534504.jpg
 ```
-
-
 
 ## gluon-cv version patch
 

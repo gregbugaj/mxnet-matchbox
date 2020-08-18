@@ -1,6 +1,7 @@
 params/
+logs/
 net-symbol.json
-
+scalar_dict.json
 
 bin/
 build/

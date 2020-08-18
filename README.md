@@ -28,6 +28,7 @@ https://stats.stackexchange.com/questions/166600/mnist-dataset-black-or-white-ba
 https://www.kaggle.com/scolianni/mnistasjpg
 
 ## Resources
+
 https://github.com/zalandoresearch/fashion-mnist
 https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=95651665
 https://mxnet.apache.org/api/python/docs/tutorials/packages/gluon/image/mnist.html
@@ -46,5 +47,6 @@ computing mean image
 # Network visualization 
 https://lutzroeder.github.io/netron/
 
-
-
+## Tensorboard / mxboard
+https://medium.com/apache-mxnet/mxboard-mxnet-data-visualization-2eed6ae31d2c
+https://gist.github.com/skirdey/8b9bd6cc20e958bc57e76004410f17ff

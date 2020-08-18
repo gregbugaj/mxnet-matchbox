@@ -28,9 +28,11 @@ from time import time
 import matplotlib.pyplot as plt
 
 import logging
-import tarfile
-logging.basicConfig(level=logging.INFO)
+import tarfile  
 
+from collections import namedtuple
+import mxnet as mx
+from mxboard import * 
 
 # logging
 logging.basicConfig(level=logging.INFO)
@@ -49,6 +51,7 @@ fh.setFormatter(formatter)
 # python3 -m pip install --upgrade pip
 # python3 -m pip install scikit-build
 # python3 -m pip install cmake
+# python3 -m pip install mxboard
 # python3 -m pip install -r requirements.txt
 
 # Once the images are loaded, we need to ensure the images are of the same size.
@@ -76,10 +79,10 @@ def get_imagenet_transforms(data_shape=224, dtype='float32'):
             data = aug(data)
         # from (H x W x c) to (c x H x W
         data = mx.nd.transpose(data, (2, 0, 1))
-
         # Normalzie 0..1 range
         data = data.astype('float32') / 255.0
-        # data = mx.nd.image.to_tensor(data)
+        # data = mx.nd.image.normalize(data, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
+        # data = mx.nd.image.to_tensor(data) # Fixme : Should be calling this
 
         return data, mx.nd.array(([label])).asscalar().astype('float32')
 
@@ -95,6 +98,7 @@ def get_imagenet_transforms(data_shape=224, dtype='float32'):
 
         # Normalzie 0..1 range
         data = data.astype('float32') / 255.0
+        # data = mx.nd.image.normalize(data, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
         return data, mx.nd.array(([label])).asscalar().astype('float32')
 
     def __train_transform(image, label):
@@ -234,37 +238,73 @@ def _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epo
     logger.info("Batch size : %d" % (batch_size))
     logger.info("Batch total : %d" % (num_batch))
 
+    #training_log = 'logs/train'
+    #evaluation_log = 'logs/eval'
+    #training_board = mx.contrib.tensorboard.LogMetricsCallback(training_log)
+
+    # define a summary writer that logs data and flushes to the file every 5 seconds
+    sw = SummaryWriter(logdir='./logs', flush_secs=5)
+    # collect parameter names for logging the gradients of parameters in each epoch
+    params = net.collect_params()
+    param_names = params.keys()
+
     # start with epoch 1 for easier learning rate calculation
-    for epoch in range(1, epochs + 1):
+    global_step = 0
+    #for epoch in range(1, epochs + 1):
+    for epoch in range(epochs):
         logger.info("Starting Epoch %d" % (epoch))
         tic = time()
         #train_data.reset() # If running as iterator
         train_loss, train_acc, n = 0.0, 0.0, 0.0
         btic = time()
+
         for i, batch in enumerate(train_data):
             data, label, batch_size = _get_batch_data(batch, ctx)
             outputs = []
             losses = []
 
+            # FIXME : list to ndarray hangs
+            # n = nd.array(data)
+            # print(type(n))            
+
             with ag.record():
                 for x, y in zip(data, label):
+                    print('---------- record----')
                     z = net(x)  # Forward pass
                     L = loss_fn(z, y)  # Calculate loss
-                    # store the loss and do backward after we have done forward
-                    # on all GPUs for better speed on multiple GPUs.
+                    # store the loss and do backward after we have done forward on all GPUs 
+                    # for better speed on multiple GPUs.
                     losses.append(L)
                     outputs.append(z)
-                    # print('   loss[L] : %s' % (L))
             for l in losses:
                 l.backward()
 
+            entropy = sum([l.mean().asscalar() for l in losses]) / len(losses)
+            train_loss += entropy
+            sw.add_scalar(tag='cross_entropy', value=entropy, global_step=global_step)
+            global_step += 1
+
             trainer.step(batch_size)
-            train_loss += sum([l.mean().asscalar() for l in losses]) / len(losses)
-            n += batch_size
             metric.update(label, outputs) # update the metrics # end of mini-batc
             btic = time()
             print('train_loss: %s' % (train_loss))
+
+            # Log the first batch of images of each epoch
+            # FIXME : This is broken values are out of range after they have been normalized
+            if i == -1:
+                for x, y in zip(data, label):                
+                    sw.add_image('first_minibatch', x.reshape((batch_size, 1, 28, 28)), epoch)
     
+        if epoch == 0:
+            sw.add_graph(net)
+
+        grads = [i.grad() for i in net.collect_params().values()]
+        assert len(grads) == len(param_names)
+        # logging the gradients of parameters for checking convergence
+        for i, name in enumerate(param_names):
+            sw.add_histogram(tag=name, values=grads[i], global_step=epoch, bins=1000)
+
+
         train_loss /= num_batch
         print('Total train_loss: %s' % (train_loss))
         name, acc = metric.get()
@@ -280,6 +320,15 @@ def _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epo
              epoch, i, speed, name, acc, trainer.learning_rate, train_acc, val_acc, test_acc))
 
         logger.info('[Epoch %d] time cost: %f'%(epoch, epoch_time))
+
+        # logging training/validation/test accuracy
+        sw.add_scalar(tag='accuracy_curves', value=('train_acc', train_acc), global_step=epoch)
+        sw.add_scalar(tag='accuracy_curves', value=('valid_acc', val_acc), global_step=epoch)
+        sw.add_scalar(tag='accuracy_curves', value=('test_acc', test_acc), global_step=epoch)
+
+        # Training cost
+        sw.add_scalar(tag='cost_curves', value=('time', epoch_time), global_step=epoch)
+        sw.add_scalar(tag='cost_curves', value=('speed', speed), global_step=epoch)
 
         btic = time()
         if val_acc > best_acc:
@@ -304,6 +353,9 @@ def _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epo
     file_name = "net"
     net.export(file_name)
     print('Network saved : %s' % (file_name))
+
+    sw.export_scalars('scalar_dict.json')
+    sw.close()
 
 
 def train(data_dir):
@@ -454,6 +506,18 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
+
+    # im = mx.nd.random_uniform(shape=(3, 10, 10)) * 255
+    # im = im.astype('float32') / 255.0
+    # print(im)
+
+    #data = mx.nd.transpose(data, (2, 0, 1))
+    # Normalzie 0..1 range
+    #data = data.astype('float32') / 255.0
+
+    #im = mx.nd.image.to_tensor(im)
+#   im_ = mx.nd.image.normalize(im, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
+    #print (" %s:: %s " %(im_.min(),im_.max()))
 
     if args.train == 'detector':
         epochs = args.epochs

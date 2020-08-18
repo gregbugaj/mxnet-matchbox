@@ -18,7 +18,9 @@ def val_transform(data):
     # from (H x W x c) to (c x H x W)
     data = mx.nd.transpose(data, (2, 0, 1))
     # Normalzie 0..1 range
-    return data.astype('float32') / 255.0
+    data = data.astype('float32') / 255.0
+    data = mx.nd.image.normalize(data, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
+    return data
 
 def evaluate(image_path):    
     print ('evaluating :" %s' %(image_path))
