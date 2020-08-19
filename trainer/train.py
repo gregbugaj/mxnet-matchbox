@@ -269,7 +269,6 @@ def _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epo
 
             with ag.record():
                 for x, y in zip(data, label):
-                    print('---------- record----')
                     z = net(x)  # Forward pass
                     L = loss_fn(z, y)  # Calculate loss
                     # store the loss and do backward after we have done forward on all GPUs 
@@ -540,5 +539,3 @@ if __name__ == "__main__":
     
     if args.diagnose == 'hardware':
         check_hardware()
-    
-    
