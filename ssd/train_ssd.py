@@ -26,8 +26,7 @@ from mxnet.contrib import amp
 from gluoncv import utils as gutils
 from gluoncv import data as gdata
 
-from model.vgg_atrous import vgg16_atrous_512
-from model.ssd import get_ssd
+from gluoncv.model_zoo import get_model
 
 def get_dataloader(net, train_dataset, val_dataset, data_shape, batch_size, num_workers, ctx):
     """Get dataloader."""
@@ -47,28 +46,38 @@ def get_dataloader(net, train_dataset, val_dataset, data_shape, batch_size, num_
     return train_loader, val_loader
 
 def get_dataset(dataset, args):
-    if dataset.lower() == 'voc':
-        train_dataset = gdata.VOCDetection(
-            splits=[(2007, 'trainval'), (2012, 'trainval')])
-        val_dataset = gdata.VOCDetection(
-            splits=[(2007, 'test')])
-        val_metric = VOC07MApMetric(iou_thresh=0.5, class_names=val_dataset.classes)
-    elif dataset.lower() == 'coco':
-        train_dataset = gdata.COCODetection(root=args.dataset_root + "/coco", splits='instances_train2017')
-        val_dataset = gdata.COCODetection(root=args.dataset_root + "/coco", splits='instances_val2017', skip_empty=False)
-        val_metric = COCODetectionMetric(
-            val_dataset, args.save_prefix + '_eval', cleanup=True,
-            data_shape=(args.data_shape, args.data_shape))
-        # coco validation is slow, consider increase the validation interval
-        if args.val_interval == 1:
-            args.val_interval = 10
-    else:
-        raise NotImplementedError('Dataset: {} not implemented.'.format(dataset))
+    """         train_dataset = gdata.VOCDetection(
+                splits=[(2007, 'trainval'), (2012, 'trainval')])
+            val_dataset = gdata.VOCDetection(
+                splits=[(2007, 'test')])
+            val_metric = VOC07MApMetric(iou_thresh=0.5, class_names=val_dataset.classes)
+    
+    """
+        
     return train_dataset, val_dataset, val_metric
 
 
-def train(data_dir):
+def train(net, data_dir):
     print("Training SSD : %s" %(data_dir))
+
+    x = mx.nd.zeros(shape=(1, 3, 512, 512))
+
+    net.initialize(mx.init.Normal(), ctx=ctx)
+    net.hybridize()
+    cids, scores, bboxes = net(x)
+
+    print(cids.shape)
+    print(scores.shape)
+    print(bboxes.shape)
+
+    with autograd.train_mode():
+        cls_preds, box_preds, anchors = net(x)
+
+    print ("========================")
+    print(cids)
+    print(scores)
+    print(bboxes)
+
 
 def save_params(net, best_map, current_map, epoch, save_interval, prefix):
     current_map = float(current_map)
@@ -177,6 +186,8 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
     num_classes = 4
+
+    print(get_model)
     # Causes error
     if args.amp:
         amp.init()
@@ -184,21 +195,19 @@ if __name__ == "__main__":
     # fix seed for mxnet, numpy and python builtin random generator.
     gutils.random.seed(args.seed)
 
-    ctx = [mx.gpu(int(i)) for i in args.gpus.split(',') if i.strip()]
-    ctx = ctx if ctx else [mx.cpu()]
+    # ctx = [mx.gpu(int(i)) for i in args.gpus.split(',') if i.strip()]
+    ctx = mx.cpu()
     
+    print(ctx)
     # network
     net_name = '_'.join(('ssd', str(args.data_shape), args.network, args.dataset))
     args.save_prefix += net_name
     
-    net = mx.gluon.model_zoo.vision.alexnet(classes=num_classes, ctx = ctx)
-
     if args.syncbn and len(ctx) > 1:
-        net = vgg16_atrous_512(ctx=ctx,
-                        norm_kwargs={'num_devices': len(ctx)})
-        async_net = vgg16_atrous_512(ctx=ctx)  # used by cpu worker
+        net = get_model('ssd_300_vgg16_atrous_voc', pretrained_base=False)
+        async_net = get_model('ssd_300_vgg16_atrous_voc', pretrained_base=False)
     else:
-        net = vgg16_atrous_512(ctx=ctx)
+        net = get_model('ssd_300_vgg16_atrous_voc', pretrained_base=False)
         async_net = net
     if args.resume.strip():
         net.load_parameters(args.resume.strip())
@@ -208,24 +217,19 @@ if __name__ == "__main__":
             warnings.simplefilter("always")
             net.initialize()
             async_net.initialize()
-            # needed for net to be first gpu when using AMP
+            # GPU needed for net to be first gpu when using AMP
             for p in net.collect_params().values():
-                p.reset_ctx(ctx[0])
-
-    classes = ['ClassA', 'ClassB']
-    net = get_ssd('vgg16_atrous', 300, features=vgg16_atrous_512, filters=None,
-                  sizes=[30, 60, 111, 162, 213, 264, 315],
-                  ratios=[[1, 2, 0.5]] + [[1, 2, 0.5, 3, 1.0/3]] * 3 + [[1, 2, 0.5]] * 2,
-                  steps=[8, 16, 32, 64, 100, 300],
-                  classes=classes, dataset='voc'**kwargs)
-
-    print(net)
-    net.initialize(mx.init.Normal(), ctx=ctx)
-    net.hybridize()
-    net(nd.random.normal(shape=(1, 3, 512, 512)))
-    net.save_parameters('test.params') 
+                p.reset_ctx(ctx)
+                #p.reset_ctx(ctx[0])
 
 
+    """ 
+        print(net)
+        net.initialize(mx.init.Normal(), ctx=ctx)
+        net.hybridize()
+        net(nd.random.normal(shape=(1, 3, 512, 512)))
+        net.save_parameters('test.params') 
+    """
 
     if args.train == 'ssd':
         epochs = args.epochs
@@ -241,4 +245,11 @@ if __name__ == "__main__":
         print('lr         : %s' %(lr))
         print('momentum   : %s' %(momentum))
         
-        train(data_dir)
+        train_dataset, val_dataset, eval_metric = get_dataset(args.dataset, args)
+
+        print(train_dataset)
+        print(val_dataset)
+        print(eval_metric)
+
+         # training
+        # train(net, train_data, val_data, eval_metric, ctx, args)
