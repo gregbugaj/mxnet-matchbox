@@ -3,6 +3,8 @@ logs/
 net-symbol.json
 scalar_dict.json
 
+*.swp
+ssd/data/
 bin/
 build/
 .idea/

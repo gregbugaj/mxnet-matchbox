@@ -6,8 +6,8 @@ from mxnet.contrib.io import DataLoaderIter
 from mxnet.gluon.data import DataLoader
 from mxnet.gluon.data.vision import ImageFolderDataset
 #from gluoncv.model_zoo import get_model
-from mxnet.gluon.metric import Accuracy, TopKAccuracy, CompositeEvalMetric
-# from mxnet.metric import Accuracy, TopKAccuracy, CompositeEvalMetric
+#from mxnet.gluon.metric import Accuracy, TopKAccuracy, CompositeEvalMetric
+from mxnet.metric import Accuracy, TopKAccuracy, CompositeEvalMetric
 
 import mxnet as mx
 import time

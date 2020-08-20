@@ -38,3 +38,8 @@ Move all generated files to `datasets` directory
 `mkdir datasets`
 
 `mv *.lst *.idx *.rec datasets`
+
+
+## Notes 
+
+https://d2l.ai/chapter_computer-vision/object-detection-dataset.html

@@ -1,7 +1,7 @@
 import argparse
 import mxnet as mx
 from mxnet import nd, gluon
-import os
+ import os
 import sys
 import numpy as np
 from collections import namedtuple
