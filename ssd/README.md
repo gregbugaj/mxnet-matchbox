@@ -43,3 +43,7 @@ Move all generated files to `datasets` directory
 ## Notes 
 
 https://d2l.ai/chapter_computer-vision/object-detection-dataset.html
+
+https://pastebin.com/msqw0MQh
+https://discuss.mxnet.io/t/is-this-a-correct-way-to-prepare-custom-data-for-yolo-v3-detector/2691
+https://github.com/diewland/pika-dataset-v3
