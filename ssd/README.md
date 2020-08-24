@@ -54,5 +54,10 @@ https://pastebin.com/msqw0MQh
 https://discuss.mxnet.io/t/is-this-a-correct-way-to-prepare-custom-data-for-yolo-v3-detector/2691
 https://github.com/diewland/pika-dataset-v3
 
-## Contains fuill dataset
+## Contains full dataset
 https://discuss.mxnet.io/t/using-faster-rcnn-on-other-things-than-voc-coco/2978
+
+
+## CVAT
+http://localhost:8080/tasks?page=1
+http://localhost:8080/admin/
