@@ -70,9 +70,7 @@ def get_dataset(dataset_dir, args):
 
     
     # test_dataset = mx.gluon.data.dataset.RecordFileDataset('./data/pikachu_val.rec')
-
-    image, label = train_dataset[0]
-    
+    image, label = test_dataset[0]
     print(image.shape, label.shape)
     print('label:', label)
 
