@@ -1,7 +1,6 @@
 # Document-SSD-MXNet
 SSD Detector trained on custom document dataset
 
-
 # Installation
 
 ## 1. Prepare Dataset
@@ -40,6 +39,13 @@ Move all generated files to `datasets` directory
 `mv *.lst *.idx *.rec datasets`
 
 
+## cleanup
+
+```
+ps aux | grep 'train_ssd' | awk '{print $2}' | xargs kill
+```
+
+
 ## Notes 
 
 https://d2l.ai/chapter_computer-vision/object-detection-dataset.html
@@ -47,3 +53,6 @@ https://d2l.ai/chapter_computer-vision/object-detection-dataset.html
 https://pastebin.com/msqw0MQh
 https://discuss.mxnet.io/t/is-this-a-correct-way-to-prepare-custom-data-for-yolo-v3-detector/2691
 https://github.com/diewland/pika-dataset-v3
+
+## Contains fuill dataset
+https://discuss.mxnet.io/t/using-faster-rcnn-on-other-things-than-voc-coco/2978
