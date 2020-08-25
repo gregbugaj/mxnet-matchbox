@@ -27,6 +27,12 @@ from gluoncv.data.transforms.presets.ssd import SSDDefaultValTransform
 from gluoncv.data.transforms.presets.ssd import SSDDALIPipeline
 from gluoncv.loss import SSDMultiBoxLoss
 
+
+# from gluoncv.data.batchify import Tuple, Stack, Pad
+# from gluoncv.data.transforms.presets.yolo import YOLO3DefaultTrainTransform
+# from gluoncv.data.transforms.presets.yolo import YOLO3DefaultValTransform
+# from gluoncv.data.dataloader import RandomTransformDataLoader
+
 from gluoncv import utils as gutils
 from gluoncv import data as gdata
 from gluoncv.model_zoo import get_model
@@ -35,6 +41,12 @@ from gluoncv.utils.metrics.voc_detection import VOCMApMetric, VOC07MApMetric
 ## notes
 # https://gluon-cv.mxnet.io/build/examples_detection/finetune_detection.html
 
+
+def read_classes():
+    """load synset for label names"""
+    with open('synset.txt', 'r') as f:
+        labels = [l.rstrip() for l in f]
+    return labels        
 
 def get_dataloader(net, train_dataset, val_dataset, data_shape, batch_size, num_workers, ctx):
     """Get dataloader."""
@@ -56,21 +68,20 @@ def get_dataloader(net, train_dataset, val_dataset, data_shape, batch_size, num_
 
 # https://mxnet.incubator.apache.org/versions/1.6/api/python/docs/api/gluon/data/index.html
 # https://mxnet.incubator.apache.org/versions/1.6/api/python/docs/_modules/mxnet/gluon/data/dataset.html#RecordFileDataset
+# https://gluon-cv.mxnet.io/api/data.datasets.html#gluoncv.data.LstDetection
 
 def get_dataset(dataset_dir, args):
-    classes = ['pikachu'] # only one foreground class here
+    classes = read_classes()
     num_class = len(classes)
  
-    # This two classes are similar but they funcitno differently
+    # This two classes are similar but they function differently
     # mx.gluon.data.dataset.RecordFileDataset
     # gcv.data.RecordFileDetection
-
-    train_dataset = gcv.data.RecordFileDetection('./data/pikachu_train.rec')
-    test_dataset = gcv.data.RecordFileDetection('./data/pikachu_train.rec')
-
+    train_dataset = gcv.data.RecordFileDetection('./data/hicfa-training/train_data/training.rec', coord_normalized=True)
+    test_dataset = gcv.data.RecordFileDetection('./data/hicfa-training/train_data/training.rec', coord_normalized=True)
+    # test_dataset = gcv.data.RecordFileDetection('./data/hicfa-training/val_data/validation.rec')
+    image, label = train_dataset[0]
     
-    # test_dataset = mx.gluon.data.dataset.RecordFileDataset('./data/pikachu_val.rec')
-    image, label = test_dataset[0]
     print(image.shape, label.shape)
     print('label:', label)
 
@@ -81,36 +92,48 @@ def get_dataset(dataset_dir, args):
     val_metric = VOC07MApMetric(iou_thresh=0.5, class_names=classes)
     return train_dataset, test_dataset, val_metric
 
-    
-def get_dataset_iterXXX(dataset, args):
-    data_shape = 256
-    batch_size = 32
-    class_names = ['pikachu']
-    num_class = len(class_names)
+def dumpRecordFileDetection(record_filename, display_ui, output_to_directory, classes, ctx):    
+    """Dump RecordFileDetection to screen or a directory"""
+    if isinstance(ctx, mx.Context):
+        ctx = [ctx]
+    dataset = gcv.data.RecordFileDetection(record_filename)
+    print('images:', len(dataset))
+    image, label = dataset[0]
+    bboxes=label[:, :4]
+    labels=label[:, 4:5]
 
-    train_iter = mx.image.ImageDetIter(
-        batch_size=batch_size,
-        data_shape=(3, data_shape, data_shape),
-        path_imgrec='./data/pikachu_train.rec',
-        path_imgidx='./data/pikachu_train.idx',
-        shuffle=True,
-        mean=True,
-        rand_crop=1,
-        min_object_covered=0.95,
-        max_attempts=200)
-    val_iter =  mx.image.ImageDetIter(
-        batch_size=batch_size,
-        data_shape=(3, data_shape, data_shape),
-        path_imgrec='./data/pikachu_val.rec',
-        shuffle=False,
-        mean=True)
+    print(image.shape, label.shape)
+    print('labeldata:', label)
+    print('bboxes:', bboxes)
+    print('labels:', labels)
+ 
+    image_dump_dir = os.path.join("./dump")
+    if not os.path.exists(image_dump_dir):
+        os.makedirs(image_dump_dir)
 
-    val_metric = VOC07MApMetric(iou_thresh=0.5, class_names=class_names)
-    return train_iter, val_iter, val_metric
+    for i, batch in enumerate(dataset):
+        size = len(batch)
+        image, label = batch
+        print(i, image.shape, label.shape)
+        bboxes = label[:, :4]
+        labels = label[:, 4:5].astype(np.uint8) 
 
-def train(net, data_dir, train_data, val_data, eval_metric, ctx, args):
+        if output_to_directory:
+            file_path = os.path.join("./dump", "{0}_.png".format(i))
+            # Format (c x H x W) 
+            img = image.asnumpy().astype(np.uint8) 
+            for box, lbl, in zip(bboxes, labels):
+                cv2.rectangle(img,(box[0], box[1]),(box[2], box[3]),(0, 0, 255), 2)
+                txt = "{0}".format(classes[lbl[0]])
+                cv2.putText(img,txt,(box[0], box[1]), cv2.FONT_HERSHEY_PLAIN,1,(0,255,0),1,cv2.LINE_AA, False)
+            cv2.imwrite(file_path, img)
+
+        if display_ui:
+            ax = viz.plot_bbox(image, bboxes=bboxes, labels=labels, class_names=classes)
+            plt.show()
+
+def train(net, train_data, val_data, eval_metric, ctx, args):
     """Training pipeline"""    
-    print("Training SSD : %s" %(data_dir))
     if isinstance(ctx, mx.Context):
         ctx = [ctx]
 
@@ -118,8 +141,6 @@ def train(net, data_dir, train_data, val_data, eval_metric, ctx, args):
                 net.collect_params(), 'sgd',
                 {'learning_rate': args.lr, 'wd': args.wd, 'momentum': args.momentum},
                 update_on_kvstore=(False if args.amp else None))
-
-    print(trainer)
 
     # lr decay policy
     lr_decay = float(args.lr_decay)
@@ -202,37 +223,23 @@ def train(net, data_dir, train_data, val_data, eval_metric, ctx, args):
             current_map = 0.
         save_params(net, best_map, current_map, epoch, args.save_interval, args.save_prefix)
 
-def trainXXX(net, data_dir, train_data, val_data, eval_metric, ctx, args):
-    """Training pipeline"""    
-    print("Training SSD : %s" %(data_dir))
-
-    x = mx.nd.zeros(shape=(1, 3, 512, 512))
-    net.initialize(mx.init.Normal(), ctx=ctx)
-    net.hybridize()
-    cids, scores, bboxes = net(x)
-
-    print(cids.shape)
-    print(scores.shape)
-    print(bboxes.shape)
-
-    with autograd.train_mode():
-        cls_preds, box_preds, anchors = net(x)
-
-    print ("========================")
-    print(cids)
-    print(scores)
-    print(bboxes)
-
+    print('Completed ')
+    # Save the tuned model
+    # There are some important distinctions between `net.save_parameters(file_name)` and `net.export(file_name)`
+    # https://github.com/apache/incubator-mxnet/blob/master/docs/python_docs/python/tutorials/packages/gluon/blocks/naming.md
+    file_name = "net"
+    net.export(file_name)
+    print('Network saved : %s' % (file_name))
 
 def save_params(net, best_map, current_map, epoch, save_interval, prefix):
     current_map = float(current_map)
     if current_map > best_map[0]:
         best_map[0] = current_map
-        net.save_params('{:s}_best.params'.format(prefix, epoch, current_map))
+        net.save_parameters('{:s}_best.params'.format(prefix, epoch, current_map))
         with open(prefix+'_best_map.log', 'a') as f:
             f.write('{:04d}:\t{:.4f}\n'.format(epoch, current_map))
     if save_interval and epoch % save_interval == 0:
-        net.save_params('{:s}_{:04d}_{:.4f}.params'.format(prefix, epoch, current_map))
+        net.save_parameters('{:s}_{:04d}_{:.4f}.params'.format(prefix, epoch, current_map))
 
 def validate(net, val_data, ctx, eval_metric):
     """Test on validation dataset."""
@@ -325,21 +332,33 @@ def parse_args():
     parser.add_argument('--amp', action='store_true',
                         help='Use MXNet AMP for mixed precision training.')
 
+    parser.add_argument('--no-random-shape', dest='no_random_shape', action='store_true',
+                        help='Use fixed size(data-shape) throughout the training, which will be faster '
+                        'and require less memory. However, final model will be slightly worse.')
+
+    parser.add_argument('--mixup', action='store_true',
+                        help='whether to enable mixup.')
+
     args = parser.parse_args()
     return args
                 
 if __name__ == "__main__":
     args = parse_args()
-    num_classes = 4
 
-    print(get_model)
     # Causes error
     if args.amp:
         amp.init()
 
     # fix seed for mxnet, numpy and python builtin random generator.
     gutils.random.seed(args.seed)
-
+    # args.network = 'ssd_300_resnet50_v1_voc' # ssd_300_resnet50_v1_voc
+    args.network = 'resnet50_v1' # ssd_512_resnet50_v1_custom
+    args.batch_size = 4
+    args.epochs = 20
+    args.data_shape = 512
+    args.dataset = 'custom'
+    
+    # args.network = 'ssd_300_vgg16_atrous_voc'
     # construct and initialize network.
     # ctx = [mx.gpu(int(i)) for i in args.gpus.split(',') if i.strip()]
     # ctx = mx.cpu()
@@ -348,12 +367,16 @@ if __name__ == "__main__":
     # network
     net_name = '_'.join(('ssd', str(args.data_shape), args.network, args.dataset))
     args.save_prefix += net_name
-    
+    classes = read_classes()
+
+    print('net_name = %s' %(net_name))
+    print('classes  = %s' %(classes))
+
     if args.syncbn and len(ctx) > 1:
-        net = get_model('ssd_300_vgg16_atrous_voc', pretrained_base=False)
-        async_net = get_model('ssd_300_vgg16_atrous_voc', pretrained_base=False)
+        net = get_model(net_name, classes = classes, pretrained_base=False)
+        async_net = get_model(net_name,  classes = classes, pretrained_base=False)
     else:
-        net = get_model('ssd_300_vgg16_atrous_voc', pretrained_base=False)
+        net = get_model(net_name, classes = classes,  pretrained_base=False)
         async_net = net
     if args.resume.strip():
         net.load_parameters(args.resume.strip())
@@ -367,14 +390,6 @@ if __name__ == "__main__":
             for p in net.collect_params().values():
                 p.reset_ctx(ctx)
                 #p.reset_ctx(ctx[0])
-
-    """ 
-        print(net)
-        net.initialize(mx.init.Normal(), ctx=ctx)
-        net.hybridize()
-        net(nd.random.normal(shape=(1, 3, 512, 512)))
-        net.save_parameters('test.params') 
-    """
 
     if args.train == 'ssd':
         epochs = args.epochs
@@ -390,26 +405,41 @@ if __name__ == "__main__":
         print('lr         : %s' %(lr))
         print('momentum   : %s' %(momentum))
         
-        # train_iter, val_iter, eval_metric = get_dataset_iter(args.dataset, args)
-        # print(train_iter)
-        # print(val_iter)
+        # Training 
+        # train_dataset, val_dataset, eval_metric = get_dataset(args.dataset, args)
+        # train_data, val_data = get_dataloader(async_net, train_dataset, val_dataset, args.data_shape, batch_size, args.num_workers, ctx)
+        # train(net, train_data, val_data, eval_metric, ctx, args)
 
-        # batch = train_iter.next()
-        # print(batch.data[0].shape)
-        # print(batch.label[0].shape)
-        # imgs = (batch.data[0][0:10].transpose((0, 2, 3, 1))) / 255
-        # print(len(batch.data))
+        # Debug 
+        # dumpRecordFileDetection('./data/hicfa-training/test_data/test.rec', True, False, classes, ctx)
+        # dumpRecordFileDetection('./data/hicfa-training/train_data/training.rec', True, False, classes, ctx)
 
-        args.data_shape = 300
+        # Evaluation
+        # https://gluon-cv.mxnet.io/_modules/gluoncv/data/transforms/presets/ssd.html            
+        # Does not work on GPU due to 
+        # MXNetError: Check failed: inputs[i]->ctx() == default_ctx (gpu(0) vs. cpu(0)) : 
+        # CachedOp requires all inputs to live on the same context. But data is on cpu(0) while ssd1_resnetv10_conv0_weight is on gpu(0)
 
-        print(args.data_shape)
-        train_dataset, val_dataset, eval_metric = get_dataset(args.dataset, args)
-        train_data, val_data = get_dataloader(async_net, train_dataset, val_dataset, args.data_shape, batch_size, args.num_workers, ctx)
+        eval_ssd = False
+        if eval_ssd:
+            ctx = mx.cpu()
+            
+            # test_url = 'https://www.signnow.com/preview/100/92/100092626/large.png'
+            test_url = 'https://i.pinimg.com/originals/ef/2e/49/ef2e495e4a6c4b8cda30dd3ec9bbacc4.jpg'
+            test_url = 'https://www.flaminke.com/wp-content/uploads/2018/09/free-printable-cms-1500-form-02-12-fresh-cms-form-templates-hcfa-best-1500-claim-pdf-template-download-of-free-printable-cms-1500-form-02-12.jpg'
+            # test_url = 'https://sc01.alicdn.com/kf/HTB1WEVWIL5TBuNjSspmq6yDRVXaI.jpg'
+            
+            os.remove('eval.png')
+            download(test_url, 'eval.png')
+            net = gcv.model_zoo.get_model('ssd_512_resnet50_v1_custom', classes=classes, pretrained_base=False, ctx = ctx)
+            net.load_parameters('ssd_512_resnet50_v1_custom_best.params')
+            net.collect_params().reset_ctx(ctx)
+            
+            x, image = gcv.data.transforms.presets.ssd.load_test('eval.png', short = 512)
+            class_IDs, scores, bounding_boxes = net(x)
 
-        print(train_data)
-        print(val_data)
-
-        # for i, batch in enumerate(train_data):
-        #     print(type(batch))
-        
-        train(net, data_dir, train_data, val_data, eval_metric, ctx, args)
+            # print(class_IDs)
+            # print(scores)
+            # print(bounding_boxes)
+            ax = viz.plot_bbox(image, bounding_boxes[0], scores[0],class_IDs[0], class_names=net.classes)
+            plt.show()

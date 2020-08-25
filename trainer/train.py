@@ -126,7 +126,6 @@ def imageInfo(srcImage):
     cv2.imshow('Image', img)
     cv2.waitKey(10000)
 
-
 def show_images(imgs, nrows, ncols, figsize=None):
     """plot a grid of images"""
     figsize = (ncols, nrows)
@@ -181,7 +180,7 @@ def get_gluon_network_cnn(num_classes):
 
     return net
 
-def _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epochs, model_prefix, hybridize=False, learning_rate=0.01, wd=0.00001, momentum=0.9):
+def _train_gluon(net, ctx, train_data, val_data, test_data, batch_size, num_epochs, model_prefix, hybridize=False, learning_rate=0.01, wd=0.00001, momentum=0.9):
     """Train model and genereate checkpoints"""
     if isinstance(ctx, mx.Context):
         ctx = [ctx]
@@ -421,7 +420,7 @@ def train(data_dir):
     # net.output = mx.gluon.nn.Dense(num_classes)
 
     print(net)
-    _train_glueon(net, ctx, train_data, val_data, test_data, batch_size, num_epochs, model_prefix='cnn', hybridize=True)
+    _train_gluon(net, ctx, train_data, val_data, test_data, batch_size, num_epochs, model_prefix='cnn', hybridize=True)
 
 def get_build_features_str():
     import mxnet.runtime

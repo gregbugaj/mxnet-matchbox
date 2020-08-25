@@ -1,0 +1,12 @@
+###### Requirements without Version Specifiers ######
+## pip install -r requirements.txt
+matplotlib
+opencv-python >= 4.4.0.40
+mxboard
+# mxnet-cu100
+# mxnet-cu90
+
+###### Requirements with Version Specifiers ######`
+# if you are eager to try new features, try nightly build instead
+# pip install gluoncv --pre --upgrade
+# gluoncv >= 0.8.0
