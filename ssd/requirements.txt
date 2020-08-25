@@ -1,8 +1,10 @@
 ###### Requirements without Version Specifiers ######
 ## pip install -r requirements.txt
 matplotlib
+pandas
 opencv-python >= 4.4.0.40
 mxboard
+
 # mxnet-cu100
 # mxnet-cu90
 

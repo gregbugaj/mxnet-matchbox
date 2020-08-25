@@ -61,3 +61,8 @@ https://discuss.mxnet.io/t/using-faster-rcnn-on-other-things-than-voc-coco/2978
 ## CVAT
 http://localhost:8080/tasks?page=1
 http://localhost:8080/admin/
+
+
+
+https://www.researchgate.net/publication/320243569_Table_Detection_Using_Deep_Learning/download
+2017_Deep_Table_ICDAR.pdf

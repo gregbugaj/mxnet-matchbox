@@ -216,6 +216,21 @@ import os
 import cv2
 import pandas as pd
 
+def transform(img):
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    # gray = img # cv2.merge([img,img,img])
+    # perform transformations on image
+    # https://docs.opencv.org/3.4/d7/d1b/group__imgproc__misc.html
+    b = cv2.distanceTransform(img, distanceType=cv2.DIST_L2, maskSize=5)  # EuclideanDistanceTransform
+    g = cv2.distanceTransform(img, distanceType=cv2.DIST_L1, maskSize=5)  # LinearDistanceTransform
+    r = cv2.distanceTransform(img, distanceType=cv2.DIST_C, maskSize=5)   # MaxDistanceTransform
+    # merge the transformed channels back to an image
+    transformed_image = cv2.merge((b, g, r))
+    # cv2.imshow('Image', transformed_image)
+    # cv2.waitKey(-1)
+    # transformed_image = (255-transformed_image) # Invert
+    return transformed_image
+    
 def process(dir_src, dir_dest):
     dirs = os.listdir(dir_src)
     dirs.sort()
@@ -237,30 +252,25 @@ def process(dir_src, dir_dest):
          os.makedirs(clazz_dir_dest)
 
         for filename in filenames:
-            # frames_path = sorted([os.path.join(path, x) for x in os.listdir(path)])
-            # frames = [ndimage.imread(frame_path) for frame_path in frames_path]
             # open image file
             path = os.path.join(clazz_dir, filename)
             path_dest = os.path.join(clazz_dir_dest, filename) + ".png"
-            print(path_dest)
-            img = cv2.imread(os.path.join(clazz_dir, filename), cv2.IMREAD_COLOR)
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            # gray = img # cv2.merge([img,img,img])
+            img = cv2.imread(os.path.join(clazz_dir, filename), cv2.IMREAD_GRAYSCALE)            
+            # img = transform(img)
+            img = image_resize(img, height=512)
 
-            # # perform transformations on image
-            b = cv2.distanceTransform(img, distanceType=cv2.DIST_L2, maskSize=3)
-            g = cv2.distanceTransform(img, distanceType=cv2.DIST_L1, maskSize=3)
-            r = cv2.distanceTransform(img, distanceType=cv2.DIST_C, maskSize=3)
-            # # merge the transformed channels back to an image
-            transformed_image = cv2.merge((b, g, r))
+            enabled = False
+            if enabled:
+                kernel = np.ones((2, 2), np.uint8) 
+                # Otsu's thresholding after Gaussian filtering
+                blur = cv2.GaussianBlur(img,(5, 5),0)
+                ret3,th3 = cv2.threshold(blur,0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+                img_dilation = cv2.dilate(th3, kernel, iterations=1) 
+                im_rgb = cv2.cvtColor(img_dilation, cv2.COLOR_BGR2RGB)
+                img = transform(im_rgb)
 
-            # cv2.imshow('Image', transformed_image)
-            # cv2.waitKey(-1)
-            # print (img)
-            # imagem = (255-transformed_image) # Invert
-            imagem = transformed_image
-            imagem = image_resize(imagem, width=512)
-            cv2.imwrite(path_dest, imagem)
+            # img = transform(blur)
+            cv2.imwrite(path_dest, img)
             # cv2.imwrite(path_dest, transformed_image)
 
 def imageInfo(srcImage):
@@ -309,6 +319,7 @@ if __name__ == "__main__":
 
     print(args.data_dir_src)
     print(args.data_dir_dest)
+    
     process(args.data_dir_src, args.data_dir_dest)
 
     data_root_dir = "./data/hicfa"

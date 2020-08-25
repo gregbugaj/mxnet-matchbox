@@ -1,4 +1,2 @@
-hicfa
-groupa
-check_enabled
-check_disabled
+hicfa001
+hicfa002

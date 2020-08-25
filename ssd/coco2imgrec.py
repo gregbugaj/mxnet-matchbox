@@ -18,7 +18,7 @@ from skimage import io
 ## 2. python im2rec.py --pack-label training.lst ownSet
 
 # python /home/greg/dev/3rdparty/mxnet/tools/im2rec.py
-# python /home/greg/dev/3rdparty/mxnet/tools/im2rec.py --pack-label ./data/hicfa-training/test_data/test.lst ownSet
+# python /home/greg/dev/3rdparty/mxnet/tools/im2rec.py --pack-label ./data/hicfa-training/test_data/test.lst 
 
 def convert(coco_filename, lst_filename):
     print("Converting")   
@@ -96,11 +96,13 @@ def convert(coco_filename, lst_filename):
            
 
 if __name__ == "__main__":
-
-    convert(coco_filename = './data/hicfa-training/train_data/coco_training.json',
-            lst_filename  = './data/hicfa-training/train_data/training.lst',
+# coco_validation.json
+    convert(coco_filename = './data/hicfa-training/val_data/coco_validation.json',
+            lst_filename  = './data/hicfa-training/val_data/validation.lst',
     )
+    
     # python /home/greg/dev/3rdparty/mxnet/tools/im2rec.py --pack-label ./data/hicfa-training/test_data/test.lst ./data/hicfa-training/test_data
     # python /home/greg/dev/3rdparty/mxnet/tools/im2rec.py --pack-label ./data/hicfa-training/val_data/validation.lst ./data/hicfa-training/val_data
     # python /home/greg/dev/3rdparty/mxnet/tools/im2rec.py --pack-label ./data/hicfa-training/train_data/training.lst ./data/hicfa-training/train_data
     
+# python /home/greg/dev/3rdparty/mxnet/tools/im2rec.py --pack-label ./data/hicfa-training/train_data/train.lst /home/greg/dev/mxnet-matchbox/ssd/data/out/hicfa-001-512
