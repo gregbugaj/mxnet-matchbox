@@ -45,6 +45,10 @@ logging.debug('\n%s', '-' * 100)
 formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
 fh.setFormatter(formatter)
 
+
+## https://stackoverflow.com/questions/14063070/overlay-a-smaller-image-on-a-larger-image-python-opencv
+
+
 def extractLogosToFolders():
     print("Image training set segregation")
     annotations = open(
@@ -231,7 +235,7 @@ def transform(img):
     # transformed_image = (255-transformed_image) # Invert
     return transformed_image
     
-def process(dir_src, dir_dest):
+def process_A(dir_src, dir_dest):
     dirs = os.listdir(dir_src)
     dirs.sort()
     print("Classes : {}".format(dirs))
@@ -255,10 +259,21 @@ def process(dir_src, dir_dest):
             # open image file
             path = os.path.join(clazz_dir, filename)
             path_dest = os.path.join(clazz_dir_dest, filename) + ".png"
-            img = cv2.imread(os.path.join(clazz_dir, filename), cv2.IMREAD_GRAYSCALE)            
+            # img = cv2.imread(os.path.join(clazz_dir, filename), cv2.IMREAD_GRAYSCALE)            
+            img = cv2.imread(os.path.join(clazz_dir, filename))            
             # img = transform(img)
             img = image_resize(img, height=512)
 
+            ## Merge two images
+            # l_img = np.zeros((512, 512), np.uint8)
+            l_img = np.ones((512, 512, 3),np.uint8)*255
+            s_img = img # np.zeros((512, 512, 3), np.uint8)
+            
+            x_offset = int((l_img.shape[1] - img.shape[1]) / 2) 
+            y_offset = 0
+            l_img[y_offset:y_offset+s_img.shape[0], x_offset:x_offset+s_img.shape[1]] = s_img
+
+            img = l_img
             enabled = False
             if enabled:
                 kernel = np.ones((2, 2), np.uint8) 
@@ -268,10 +283,107 @@ def process(dir_src, dir_dest):
                 img_dilation = cv2.dilate(th3, kernel, iterations=1) 
                 im_rgb = cv2.cvtColor(img_dilation, cv2.COLOR_BGR2RGB)
                 img = transform(im_rgb)
-
             # img = transform(blur)
             cv2.imwrite(path_dest, img)
-            # cv2.imwrite(path_dest, transformed_image)
+
+def processB(dir_src, dir_dest):
+    dirs = os.listdir(dir_src)
+    dirs.sort()
+    print("Classes : {}".format(dirs))
+
+    for clazz in dirs:
+        print(clazz)
+        clazz_dir = os.path.join(dir_src, clazz)
+        clazz_dir_dest = os.path.join(dir_dest, clazz)
+
+        filenames = os.listdir(clazz_dir)
+        #random.shuffle(filenames)
+        filenames.sort()
+        size = len(filenames)
+
+        print(size)
+        print(filenames)
+        if not os.path.exists(clazz_dir_dest):
+         os.makedirs(clazz_dir_dest)
+
+        for filename in filenames:
+            # open image file
+            path = os.path.join(clazz_dir, filename)
+            path_dest = os.path.join(clazz_dir_dest, filename) + ".png"
+            # img = cv2.imread(os.path.join(clazz_dir, filename), cv2.IMREAD_GRAYSCALE)            
+            img = cv2.imread(os.path.join(clazz_dir, filename))            
+            img = transform(img)
+            img = image_resize(img, height=512)
+
+            ## Merge two images
+            # l_img = np.zeros((512, 512), np.uint8)
+            l_img = np.ones((512, 512, 3),np.uint8)*255
+            s_img = img # np.zeros((512, 512, 3), np.uint8)
+            
+            x_offset = int((l_img.shape[1] - img.shape[1]) / 2) 
+            y_offset = 0
+            l_img[y_offset:y_offset+s_img.shape[0], x_offset:x_offset+s_img.shape[1]] = s_img
+
+            img = l_img
+            enabled = True
+            if enabled:
+                img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                kernel = np.ones((2, 2), np.uint8) 
+                # Otsu's thresholding after Gaussian filtering
+                blur = cv2.GaussianBlur(img,(5, 5), 0)
+                ret3,th3 = cv2.threshold(blur,0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+                img_dilation = cv2.dilate(th3, kernel, iterations=1) 
+                im_rgb = cv2.cvtColor(img_dilation, cv2.COLOR_BGR2RGB)
+                # img = transform(im_rgb)
+
+            cv2.imwrite(path_dest, img)
+
+def process(dir_src, dir_dest):
+    dirs = os.listdir(dir_src)
+    dirs.sort()
+    print("Classes : {}".format(dirs))
+
+    for clazz in dirs:
+        print(clazz)
+        clazz_dir = os.path.join(dir_src, clazz)
+        clazz_dir_dest = os.path.join(dir_dest, clazz)
+
+        filenames = os.listdir(clazz_dir)
+        #random.shuffle(filenames)
+        filenames.sort()
+        size = len(filenames)
+
+        print(size)
+        print(filenames)
+        if not os.path.exists(clazz_dir_dest):
+         os.makedirs(clazz_dir_dest)
+
+        for filename in filenames:
+            try:
+                print (filename)
+                # open image file
+                path = os.path.join(clazz_dir, filename)
+                path_dest = os.path.join(clazz_dir_dest, filename) + ".png"
+                # img = cv2.imread(os.path.join(clazz_dir, filename), cv2.IMREAD_GRAYSCALE)            
+                img = cv2.imread(os.path.join(clazz_dir, filename))     
+                img = transform(img)
+                img = image_resize(img, height=512)
+
+                ## Merge two images
+                # l_img = np.zeros((512, 512), np.uint8)
+                l_img = np.ones((512, 512, 3),np.uint8)*255
+                s_img = img # np.zeros((512, 512, 3), np.uint8)
+                
+                x_offset = int((l_img.shape[1] - img.shape[1]) / 2) 
+                y_offset = 0
+                l_img[y_offset:y_offset+s_img.shape[0], x_offset:x_offset+s_img.shape[1]] = s_img
+
+                img = l_img
+    
+                cv2.imwrite(path_dest, img)
+            except:
+                print('')
+
 
 def imageInfo(srcImage):
     print("image : {}".format(srcImage))

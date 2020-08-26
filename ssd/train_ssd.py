@@ -44,7 +44,7 @@ from gluoncv.utils.metrics.voc_detection import VOCMApMetric, VOC07MApMetric
 # https://d2l.ai/chapter_computer-vision/ssd.html
 # Height / Width Issues
 # https://github.com/dmlc/gluon-cv/issues/579 
-
+# https://github.com/apache/incubator-mxnet/issues/6545
 
 def read_classes():
     """load synset for label names"""
@@ -86,11 +86,12 @@ def get_dataset(dataset_dir, args):
     # mx.gluon.data.dataset.RecordFileDataset
     # gcv.data.RecordFileDetection
     
-    # train_dataset = gcv.data.RecordFileDetection('./data/hicfa-training/train_data/training.rec', coord_normalized=True)
+    train_dataset = gcv.data.RecordFileDetection('./data/hicfa-training/train_data/training.rec', coord_normalized=True)
     # test_dataset = gcv.data.RecordFileDetection('./data/hicfa-training/train_data/training.rec', coord_normalized=True)
+    test_dataset = gcv.data.RecordFileDetection('./data/hicfa-training/val_data/validation.rec', coord_normalized=True)
 
-    train_dataset = gcv.data.RecordFileDetection('./data/hicfa-training/train_data/train.rec')
-    test_dataset = gcv.data.RecordFileDetection('./data/hicfa-training/val_data/validation.rec')
+    # train_dataset = gcv.data.RecordFileDetection('./data/hicfa-training/train_data/training.rec')
+    # test_dataset = gcv.data.RecordFileDetection('./data/hicfa-training/train_data/training.rec')
     # test_dataset = gcv.data.RecordFileDetection('./data/hicfa-training/val_data/validation.rec')
     image, label = train_dataset[0]
     
@@ -259,6 +260,7 @@ def validate(net, val_data, ctx, eval_metric):
     eval_metric.reset()
     # set nms threshold and topk constraint
     net.set_nms(nms_thresh=0.45, nms_topk=400)
+    # net.set_nms(nms_thresh=0.30, nms_topk=400)
     net.hybridize(static_alloc=True, static_shape=True)
     for batch in val_data:
         data = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0, even_split=False)
@@ -375,10 +377,11 @@ if __name__ == "__main__":
     # args.network = 'ssd_300_resnet50_v1_voc' # ssd_300_resnet50_v1_voc
     args.network = 'resnet50_v1' # ssd_512_resnet50_v1_custom
     # args.network = 'vgg16_atrous' # ssd_512_resnet50_v1_custom
-    args.batch_size = 4
-    args.epochs = 10
+    args.batch_size = 2
+    args.epochs = 200
     args.data_shape = 512
     args.dataset = 'custom'
+    args.lr = .001
     
     # args.network = 'ssd_300_vgg16_atrous_voc'
     # construct and initialize network.
@@ -427,9 +430,14 @@ if __name__ == "__main__":
         print('lr         : %s' %(lr))
         print('momentum   : %s' %(momentum))
         
-        eval_ssd = False
-        train_ssd = True
+        eval_ssd = True
+        train_ssd = False
         debug_ssd = False
+
+        # src = '/home/greg/dev/mxnet-matchbox/ssd/data/hicfa-training/train_data/269721_202006290006055_001.tif.png'
+        # x, image = gcv.data.transforms.presets.ssd.load_test(src, short = 512)
+        #cv2.imshow('Image', image)
+        #cv2.waitKey(-1)
 
         # Training 
         if train_ssd:
@@ -440,8 +448,8 @@ if __name__ == "__main__":
         # Debug 
         if debug_ssd:
             # dumpRecordFileDetection('./data/hicfa-training/train_data/train.rec', False, True, classes, ctx)
-            # dumpRecordFileDetection('./data/hicfa-training/train_data/training.rec', True, False, classes, ctx)
-            dumpRecordFileDetection('./data/hicfa-training/val_data/validation.rec', False, True, classes, ctx)
+            dumpRecordFileDetection('./data/hicfa-training/train_data/training.rec', False, True, classes, ctx)
+            # dumpRecordFileDetection('./data/hicfa-training/val_data/validation.rec', False, True, classes, ctx)
 
         # Evaluation
         # https://gluon-cv.mxnet.io/_modules/gluoncv/data/transforms/presets/ssd.html            
@@ -450,6 +458,7 @@ if __name__ == "__main__":
         # CachedOp requires all inputs to live on the same context. But data is on cpu(0) while ssd1_resnetv10_conv0_weight is on gpu(0)
 
         if eval_ssd:
+            # as_in_context
             ctx = mx.cpu()
             # test_url = 'https://www.signnow.com/preview/100/92/100092626/large.png'
             #test_url = 'https://i.pinimg.com/originals/ef/2e/49/ef2e495e4a6c4b8cda30dd3ec9bbacc4.jpg'
@@ -459,17 +468,24 @@ if __name__ == "__main__":
 
             net = gcv.model_zoo.get_model('ssd_512_resnet50_v1_custom', classes=classes, pretrained_base=False, ctx = ctx)
             net.load_parameters('ssd_512_resnet50_v1_custom_best.params')
+            net.load_parameters('ssd_512_resnet50_v1_custom_best_WORKING.params')
             net.collect_params().reset_ctx(ctx)
             
-            src = '/home/greg/dev/mxnet-matchbox/ssd/data/out/hicfa-001-512/269695_202006290005615_001.tif.png.png'
+         
+            #src = '/home/greg/dev/mxnet-matchbox/ssd/data/out/hcfa-allstate/270135_202006300006751_001.tif.png'
+            src = '/home/greg/dev/mxnet-matchbox/ssd/data/out/hcfa-allstate/269748_202006290006528_001.tif.png'
+            # src = '/home/greg/dev/mxnet-matchbox/ssd/data/out/hcfa-allstate/270131_202006300006707_001.tif.png'
+            
+            
             x, image = gcv.data.transforms.presets.ssd.load_test(src, short = 512)
             class_IDs, scores, bounding_boxes = net(x)
-
-            x = x.transpose((0, 2, 3, 1))
-            print(class_IDs)
+            # print(class_IDs)
             # os.remove('eval.png')
-            print(class_IDs)
-            print(scores)
-            print(bounding_boxes)
+            # print(class_IDs)
+            # print(scores)
+            # print(bounding_boxes)
+            print(bounding_boxes[0])
+
+
             ax = viz.plot_bbox(image, bounding_boxes[0], scores[0],class_IDs[0], class_names=net.classes)
             plt.show()
