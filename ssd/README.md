@@ -45,7 +45,6 @@ Move all generated files to `datasets` directory
 ps aux | grep 'train_ssd' | awk '{print $2}' | xargs kill
 ```
 
-
 ## Notes 
 
 https://d2l.ai/chapter_computer-vision/object-detection-dataset.html

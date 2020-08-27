@@ -20,18 +20,11 @@ from mxnet.contrib import amp
 import gluoncv as gcv
 from gluoncv.utils import download, viz
 
-
 from gluoncv.data.batchify import Tuple, Stack, Pad
 from gluoncv.data.transforms.presets.ssd import SSDDefaultTrainTransform
 from gluoncv.data.transforms.presets.ssd import SSDDefaultValTransform
 from gluoncv.data.transforms.presets.ssd import SSDDALIPipeline
 from gluoncv.loss import SSDMultiBoxLoss
-
-
-# from gluoncv.data.batchify import Tuple, Stack, Pad
-# from gluoncv.data.transforms.presets.yolo import YOLO3DefaultTrainTransform
-# from gluoncv.data.transforms.presets.yolo import YOLO3DefaultValTransform
-# from gluoncv.data.dataloader import RandomTransformDataLoader
 
 from gluoncv import utils as gutils
 from gluoncv import data as gdata
@@ -63,6 +56,8 @@ def get_dataloader(net, train_dataset, val_dataset, data_shape, batch_size, num_
         _, _, anchors = net(mx.nd.zeros((1, 3, height, width), ctx))
 
     anchors = anchors.as_in_context(mx.cpu())
+
+    print(anchors)
     batchify_fn = Tuple(Stack(), Stack(), Stack())  # stack image, cls_targets, box_targets
     train_loader = gluon.data.DataLoader(
         train_dataset.transform(SSDDefaultTrainTransform(width, height, anchors)),
@@ -378,7 +373,7 @@ if __name__ == "__main__":
     args.network = 'resnet50_v1' # ssd_512_resnet50_v1_custom
     # args.network = 'vgg16_atrous' # ssd_512_resnet50_v1_custom
     args.batch_size = 2
-    args.epochs = 200
+    args.epochs = 1000
     args.data_shape = 512
     args.dataset = 'custom'
     args.lr = .001
@@ -439,17 +434,18 @@ if __name__ == "__main__":
         #cv2.imshow('Image', image)
         #cv2.waitKey(-1)
 
+        # Debug 
+        if debug_ssd:
+            # dumpRecordFileDetection('./data/hicfa-training/train_data/train.rec', False, True, classes, ctx)
+            dumpRecordFileDetection('./data/hicfa-training/train_data/training.rec', False, True, classes, ctx)
+            # dumpRecordFileDetection('./data/hicfa-training/val_data/validation.rec', False, True, classes, ctx)
+
         # Training 
         if train_ssd:
             train_dataset, val_dataset, eval_metric = get_dataset(args.dataset, args)
             train_data, val_data = get_dataloader(async_net, train_dataset, val_dataset, args.data_shape, batch_size, args.num_workers, ctx)
             train(net, train_data, val_data, eval_metric, ctx, args)
 
-        # Debug 
-        if debug_ssd:
-            # dumpRecordFileDetection('./data/hicfa-training/train_data/train.rec', False, True, classes, ctx)
-            dumpRecordFileDetection('./data/hicfa-training/train_data/training.rec', False, True, classes, ctx)
-            # dumpRecordFileDetection('./data/hicfa-training/val_data/validation.rec', False, True, classes, ctx)
 
         # Evaluation
         # https://gluon-cv.mxnet.io/_modules/gluoncv/data/transforms/presets/ssd.html            
@@ -468,14 +464,13 @@ if __name__ == "__main__":
 
             net = gcv.model_zoo.get_model('ssd_512_resnet50_v1_custom', classes=classes, pretrained_base=False, ctx = ctx)
             net.load_parameters('ssd_512_resnet50_v1_custom_best.params')
-            net.load_parameters('ssd_512_resnet50_v1_custom_best_WORKING.params')
+            # net.load_parameters('ssd_512_resnet50_v1_custom_best_WORKING.params')
             net.collect_params().reset_ctx(ctx)
             
          
             #src = '/home/greg/dev/mxnet-matchbox/ssd/data/out/hcfa-allstate/270135_202006300006751_001.tif.png'
-            src = '/home/greg/dev/mxnet-matchbox/ssd/data/out/hcfa-allstate/269748_202006290006528_001.tif.png'
+            src  = '/home/greg/dev/mxnet-matchbox/ssd/data/out/hcfa-allstate/269748_202006290006528_001.tif.png'
             # src = '/home/greg/dev/mxnet-matchbox/ssd/data/out/hcfa-allstate/270131_202006300006707_001.tif.png'
-            
             
             x, image = gcv.data.transforms.presets.ssd.load_test(src, short = 512)
             class_IDs, scores, bounding_boxes = net(x)
@@ -485,7 +480,6 @@ if __name__ == "__main__":
             # print(scores)
             # print(bounding_boxes)
             print(bounding_boxes[0])
-
 
             ax = viz.plot_bbox(image, bounding_boxes[0], scores[0],class_IDs[0], class_names=net.classes)
             plt.show()

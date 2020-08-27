@@ -30,9 +30,6 @@ def convert(coco_filename, lst_filename):
     with open(coco_filename, 'r') as f:  
         DataSets = json.load(f)  
     
-    print(DataSets['annotations'][0])  
-    print(DataSets['images'][0])  
-
     ## save class and own dataset .json  
     jsonName = os.path.join(root_dir, 'ownset.json') 
     data = {}  
@@ -59,14 +56,15 @@ def convert(coco_filename, lst_filename):
                 box[1] = box[1]/height  
                 box[3] = box[3]/height  
 
-            # io.imsave(directory + img_name, img.asnumpy())  
-            data['DataSet'].append({  
-                'img_name': img_name,  
-                'height': height,  
-                'width': width,  
-                'bbox': box,  
-                'class':DataSet['category_id']  
-            })  
+            if DataSet['category_id']  == 2:
+                # io.imsave(directory + img_name, img.asnumpy())  
+                    data['DataSet'].append({  
+                        'img_name': img_name,  
+                        'height': height,  
+                        'width': width,  
+                        'bbox': box,  
+                        'class':DataSet['category_id']  
+                    })  
 
         json.dump(data, outfile)  
     print('save ok')  
@@ -80,7 +78,7 @@ def convert(coco_filename, lst_filename):
     img_idx = 0  
     with open(lst_filename, 'w+') as f:  
         for Data in DataSet['DataSet']:  
-    
+            class_id = Data['class']  
             x_min = Data['bbox'][0]  
             y_min = Data['bbox'][1]  
             x_max = Data['bbox'][0]+ Data['bbox'][2]  
@@ -89,16 +87,15 @@ def convert(coco_filename, lst_filename):
                     str(img_idx) + '\t' +  # idx  
                     str(4) + '\t' + str(5) + '\t' +  # width of header and width of each object.  
                     str(int(Data['height'])) + '\t' + str(Data['width']) + '\t' +  # (width, height)  
-                    str(1) + '\t' +  # class  
+                    str(class_id) + '\t' +  # class  
                     str(x_min) + '\t' + str(y_min) + '\t' + str(x_max) + '\t' + str(y_max) + '\t' +  # xmin, ymin, xmax, ymax  
                     str(Data['img_name'])+'\n')  
             img_idx += 1
-           
 
 if __name__ == "__main__":
 # coco_validation.json
-    convert(coco_filename = './data/hicfa-training/val_data/coco_validate.json',
-            lst_filename  = './data/hicfa-training/val_data/validation.lst',
+    convert(coco_filename = './data/hicfa-training/train_data/coco.json',
+            lst_filename  = './data/hicfa-training/train_data/training.lst',
     )
 
     # python /home/greg/dev/3rdparty/mxnet/tools/im2rec.py --pack-label ./data/hicfa-training/test_data/test.lst ./data/hicfa-training/test_data
@@ -109,3 +106,8 @@ if __name__ == "__main__":
 
     # python /home/greg/dev/3rdparty/mxnet/tools/im2rec.py --pack-label ./data/hicfa-training/train_data/training.lst /home/greg/dev/mxnet-matchbox/ssd/data/out/hicfa-001-train
     # python /home/greg/dev/3rdparty/mxnet/tools/im2rec.py --pack-label ./data/hicfa-training/test_data/test.lst /home/greg/dev/mxnet-matchbox/ssd/data/out/hicfa-001-test
+    # python /home/greg/dev/3rdparty/mxnet/tools/im2rec.py --pack-label ./data/hicfa-training/val_data/validation.lst ./data/hicfa-training/val_data
+
+
+#python /home/greg/dev/3rdparty/mxnet/tools/im2rec.py --pack-label ./data/hicfa-training/train_data/training.lst ./data/out/hcfa-allstate
+#python /home/greg/dev/3rdparty/mxnet/tools/im2rec.py --pack-label ./data/hicfa-training/val_data/validation.lst ./data/out/hcfa-allstate

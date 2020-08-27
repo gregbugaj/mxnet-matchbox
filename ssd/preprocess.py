@@ -365,23 +365,25 @@ def process(dir_src, dir_dest):
                 path = os.path.join(clazz_dir, filename)
                 path_dest = os.path.join(clazz_dir_dest, filename) + ".png"
                 # img = cv2.imread(os.path.join(clazz_dir, filename), cv2.IMREAD_GRAYSCALE)            
+                w = 512
+                h = 900
+
                 img = cv2.imread(os.path.join(clazz_dir, filename))     
-                img = transform(img)
-                img = image_resize(img, height=512)
+                # img = transform(img)
+                # img = image_resize(img, height=h)
+                img = image_resize(img, width=w)
+                img_h, img_w, img_c = img.shape
+                print(img.shape)
 
                 ## Merge two images
-                # l_img = np.zeros((512, 512), np.uint8)
-                l_img = np.ones((512, 512, 3),np.uint8)*255
+                l_img = np.ones((h, w, 3),np.uint8) * 255
                 s_img = img # np.zeros((512, 512, 3), np.uint8)
-                
                 x_offset = int((l_img.shape[1] - img.shape[1]) / 2) 
-                y_offset = 0
+                y_offset = 0 # Anchored to the upper left
                 l_img[y_offset:y_offset+s_img.shape[0], x_offset:x_offset+s_img.shape[1]] = s_img
-
                 img = l_img
-    
                 cv2.imwrite(path_dest, img)
-            except:
+            finally:
                 print('')
 
 
