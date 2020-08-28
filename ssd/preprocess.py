@@ -366,7 +366,7 @@ def process(dir_src, dir_dest):
                 path_dest = os.path.join(clazz_dir_dest, filename) + ".png"
                 # img = cv2.imread(os.path.join(clazz_dir, filename), cv2.IMREAD_GRAYSCALE)            
                 w = 512
-                h = 900
+                h = 512
 
                 img = cv2.imread(os.path.join(clazz_dir, filename))     
                 # img = transform(img)

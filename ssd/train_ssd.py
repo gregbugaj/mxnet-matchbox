@@ -54,7 +54,6 @@ def get_dataloader(net, train_dataset, val_dataset, data_shape, batch_size, num_
     # use fake data to generate fixed anchors for target generation
     with autograd.train_mode():
         _, _, anchors = net(mx.nd.zeros((1, 3, height, width), ctx))
-
     anchors = anchors.as_in_context(mx.cpu())
 
     print(anchors)
@@ -81,9 +80,9 @@ def get_dataset(dataset_dir, args):
     # mx.gluon.data.dataset.RecordFileDataset
     # gcv.data.RecordFileDetection
     
-    train_dataset = gcv.data.RecordFileDetection('./data/hicfa-training/train_data/training.rec', coord_normalized=True)
-    # test_dataset = gcv.data.RecordFileDetection('./data/hicfa-training/train_data/training.rec', coord_normalized=True)
-    test_dataset = gcv.data.RecordFileDetection('./data/hicfa-training/val_data/validation.rec', coord_normalized=True)
+    train_dataset = gcv.data.RecordFileDetection('./data/hicfa-training/train_data/training.rec')
+    # test_dataset = gcv.data.RecordFileDetection('./data/hicfa-training/train_data/training.rec')
+    test_dataset = gcv.data.RecordFileDetection('./data/hicfa-training/val_data/validation.rec')
 
     # train_dataset = gcv.data.RecordFileDetection('./data/hicfa-training/train_data/training.rec')
     # test_dataset = gcv.data.RecordFileDetection('./data/hicfa-training/train_data/training.rec')
@@ -359,7 +358,11 @@ def parse_args():
 
     args = parser.parse_args()
     return args
-                
+
+def plt_display(img, label):
+        plt.imshow(img)
+        plt.show()
+
 if __name__ == "__main__":
     args = parse_args()
 
@@ -372,8 +375,8 @@ if __name__ == "__main__":
     # args.network = 'ssd_300_resnet50_v1_voc' # ssd_300_resnet50_v1_voc
     args.network = 'resnet50_v1' # ssd_512_resnet50_v1_custom
     # args.network = 'vgg16_atrous' # ssd_512_resnet50_v1_custom
-    args.batch_size = 2
-    args.epochs = 1000
+    args.batch_size = 4
+    args.epochs = 2000
     args.data_shape = 512
     args.dataset = 'custom'
     args.lr = .001
@@ -426,6 +429,7 @@ if __name__ == "__main__":
         print('momentum   : %s' %(momentum))
         
         eval_ssd = True
+        eval_dir = True
         train_ssd = False
         debug_ssd = False
 
@@ -453,9 +457,9 @@ if __name__ == "__main__":
         # MXNetError: Check failed: inputs[i]->ctx() == default_ctx (gpu(0) vs. cpu(0)) : 
         # CachedOp requires all inputs to live on the same context. But data is on cpu(0) while ssd1_resnetv10_conv0_weight is on gpu(0)
 
+        ctx  = mx.cpu()
+        
         if eval_ssd:
-            # as_in_context
-            ctx = mx.cpu()
             # test_url = 'https://www.signnow.com/preview/100/92/100092626/large.png'
             #test_url = 'https://i.pinimg.com/originals/ef/2e/49/ef2e495e4a6c4b8cda30dd3ec9bbacc4.jpg'
             #test_url = 'https://www.flaminke.com/wp-content/uploads/2018/09/free-printable-cms-1500-form-02-12-fresh-cms-form-templates-hcfa-best-1500-claim-pdf-template-download-of-free-printable-cms-1500-form-02-12.jpg'
@@ -466,20 +470,64 @@ if __name__ == "__main__":
             net.load_parameters('ssd_512_resnet50_v1_custom_best.params')
             # net.load_parameters('ssd_512_resnet50_v1_custom_best_WORKING.params')
             net.collect_params().reset_ctx(ctx)
-            
          
             #src = '/home/greg/dev/mxnet-matchbox/ssd/data/out/hcfa-allstate/270135_202006300006751_001.tif.png'
-            src  = '/home/greg/dev/mxnet-matchbox/ssd/data/out/hcfa-allstate/269748_202006290006528_001.tif.png'
-            # src = '/home/greg/dev/mxnet-matchbox/ssd/data/out/hcfa-allstate/270131_202006300006707_001.tif.png'
-            
-            x, image = gcv.data.transforms.presets.ssd.load_test(src, short = 512)
+            src  = '/home/greg/dev/mxnet-matchbox/ssd/data/images/hcfa-allstate/269689_202006290005163_001.tif'
+            src  = '/home/greg/dev/mxnet-matchbox/ssd/data/images/hcfa-allstate/269689_202006290005163_001.tif'
+            # src  = '/home/greg/dev/mxnet-matchbox/ssd/data/images/hcfa-allstate/269718_202006290006034_001.tif'
+            # src  = '/home/greg/dev/mxnet-matchbox/ssd/data/images/hcfa-allstate/269864_202006290008702_001.tif'
+
+            # img = mx.nd.image.normalize(img, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
+            # xxx =  img.asnumpy().astype(np.uint8) 
+            # plt_display(xxx, 'cv2-BGR')
+            # cv2.imwrite("/home/greg/dev/mxnet-matchbox/ssd/dump/out.png", xxx)
+
+            x, image = gcv.data.transforms.presets.ssd.load_test(src, short = 512, mean=(0.0, 0.0, 0.0), std=(0.0, 0.0, 0.0))
+            x = x.as_in_context(ctx)
             class_IDs, scores, bounding_boxes = net(x)
             # print(class_IDs)
-            # os.remove('eval.png')
             # print(class_IDs)
-            # print(scores)
-            # print(bounding_boxes)
-            print(bounding_boxes[0])
-
+            print(scores[0])
             ax = viz.plot_bbox(image, bounding_boxes[0], scores[0],class_IDs[0], class_names=net.classes)
             plt.show()
+
+
+        if eval_dir:
+            net = gcv.model_zoo.get_model('ssd_512_resnet50_v1_custom', classes=classes, pretrained_base=False, ctx = ctx)
+            net.load_parameters('ssd_512_resnet50_v1_custom_best.params')
+            net.collect_params().reset_ctx(ctx)
+
+            image_dest_dir = os.path.join("./results")
+            if not os.path.exists(image_dest_dir):
+                os.makedirs(image_dest_dir)
+        
+            src_dir = './data/images/hcfa-allstate'
+            filenames = os.listdir(src_dir)
+            filenames.sort()
+            size = len(filenames)
+            classes = read_classes()
+
+            for filename in filenames:
+                file_path = os.path.join(src_dir, filename)
+                print(file_path)
+                # x, image = gcv.data.transforms.presets.ssd.load_test(file_path, short = 512, mean=(0.0, 0.0, 0.0), std=(0.0, 0.0, 0.0))
+                x, image = gcv.data.transforms.presets.ssd.load_test(file_path, short = 512)
+                x = x.as_in_context(ctx)
+                class_IDs, scores, bounding_boxes = net(x)
+                bboxes = bounding_boxes[0]
+                labels = class_IDs[0]
+
+                for _box, lbl, in zip(bboxes, labels):
+                    # print(scores[0][0].asscalar())
+                    if scores[0][0].asscalar() > .01 :
+                        box = _box.asnumpy()
+                        labelId = int(lbl.asscalar())
+                        print ("{} ::: {} ".format(labelId, box))
+                        cv2.rectangle(image,(box[0], box[1]),(box[2], box[3]),(0, 0, 255), 2)
+                        txt = "{0}".format(classes[labelId])
+                        cv2.putText(image,txt,(box[0], box[1]), cv2.FONT_HERSHEY_PLAIN,1,(0,255,0),1,cv2.LINE_AA, False)
+
+                        image_dest = os.path.join(image_dest_dir, "{}.png".format(filename))
+                        cv2.imwrite(image_dest, image)
+                        break
+

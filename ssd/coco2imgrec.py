@@ -56,7 +56,7 @@ def convert(coco_filename, lst_filename):
                 box[1] = box[1]/height  
                 box[3] = box[3]/height  
 
-            if DataSet['category_id']  == 2:
+            if DataSet['category_id']  != -1:
                 # io.imsave(directory + img_name, img.asnumpy())  
                     data['DataSet'].append({  
                         'img_name': img_name,  
@@ -94,8 +94,8 @@ def convert(coco_filename, lst_filename):
 
 if __name__ == "__main__":
 # coco_validation.json
-    convert(coco_filename = './data/hicfa-training/train_data/coco.json',
-            lst_filename  = './data/hicfa-training/train_data/training.lst',
+    convert(coco_filename = './data/hicfa-training/val_data/coco.json',
+            lst_filename  = './data/hicfa-training/val_data/validation.lst',
     )
 
     # python /home/greg/dev/3rdparty/mxnet/tools/im2rec.py --pack-label ./data/hicfa-training/test_data/test.lst ./data/hicfa-training/test_data
@@ -109,5 +109,5 @@ if __name__ == "__main__":
     # python /home/greg/dev/3rdparty/mxnet/tools/im2rec.py --pack-label ./data/hicfa-training/val_data/validation.lst ./data/hicfa-training/val_data
 
 
-#python /home/greg/dev/3rdparty/mxnet/tools/im2rec.py --pack-label ./data/hicfa-training/train_data/training.lst ./data/out/hcfa-allstate
-#python /home/greg/dev/3rdparty/mxnet/tools/im2rec.py --pack-label ./data/hicfa-training/val_data/validation.lst ./data/out/hcfa-allstate
+#python /home/greg/dev/3rdparty/mxnet/tools/im2rec.py --pack-label ./data/hicfa-training/train_data/training.lst ./data/hicfa-training/train_data
+#python /home/greg/dev/3rdparty/mxnet/tools/im2rec.py --pack-label ./data/hicfa-training/val_data/validation.lst ./data/hicfa-training/val_data
