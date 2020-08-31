@@ -3,6 +3,9 @@ logs/
 net-symbol.json
 scalar_dict.json
 
+__pycache__/
+.ipynb_checkpoints/
+
 *.swp
 ssd/data/
 bin/
