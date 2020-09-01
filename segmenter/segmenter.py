@@ -57,15 +57,28 @@ os.environ["MXNET_CUDNN_AUTOTUNE_DEFAULT"] = "0"
 
 # the RGB label of images and the names of lables
 COLORMAP = [[0, 0, 0], [255, 255, 255]]
-CLASSES = ['background', 'car']
+CLASSES = ['background', 'form']
 
 # https://mxnet.apache.org/versions/1.2.1/tutorials/gluon/datasets.html
 
 def _get_batch(batch, ctx, is_even_split=True):
     features, labels = batch
+    print('--'*20)
+    print(features.shape)
+    print(labels.shape)
+    print('++'*20)
+
     if labels.dtype != features.dtype:
         labels = labels.astype(features.dtype)
-    return gutils.split_and_load(features, ctx, even_split=is_even_split), gutils.split_and_load(labels, ctx, even_split=is_even_split), features.shape[0]
+    
+    fsplit = gutils.split_and_load(features, ctx, even_split=is_even_split)
+    lsplit = gutils.split_and_load(labels, ctx, even_split=is_even_split) 
+    print(fsplit[0].shape)
+    print(lsplit[0].shape)
+    print(features.shape[0])
+    print('++'*20)
+    
+    return fsplit, lsplit, features.shape[0]
 
 
 def evaluate_accuracy(data_iter, net, ctx):
@@ -83,21 +96,19 @@ def evaluate_accuracy(data_iter, net, ctx):
 
 def train(train_iter, test_iter, net, loss, trainer, ctx, num_epochs, log_dir='./', checkpoints_dir='./checkpoints'):
     """Train model and genereate checkpoints"""
-    print('Training network')
+    print('Training network : ', num_epochs)
     if isinstance(ctx, mx.Context):
         ctx = [ctx]
-
 
     if not os.path.exists(checkpoints_dir):
         os.makedirs(checkpoints_dir)
     with open(log_dir + os.sep + 'UNet_log.txt', 'w') as f:
         print('training on', ctx, file=f)
-        print('training on', ctx)
-        if isinstance(ctx, mx.Context):
-            ctx = [ctx]
         for epoch in range(num_epochs):
+            print('epoch # : ', epoch)
             train_l_sum, train_acc_sum, n, m, start = 0.0, 0.0, 0, 0, time.time()
             for i, batch in enumerate(train_iter):
+                print("Batch Index : ", i)
                 xs, ys, batch_size = _get_batch(batch, ctx)
                 ls = []
                 with autograd.record():
@@ -190,9 +201,8 @@ def parse_args():
                         help='whether or not to even split the data to all GPUs. (default: %(default)s)',
                         type=bool,
                         default=True)
+
     return parser.parse_args()
-
-
 
 if __name__ == '__main__':
     args = parse_args()
@@ -209,30 +219,33 @@ if __name__ == '__main__':
         os.environ['MXNET_CUDA_VISIBLE_DEVICES'] = s
         os.environ['MXNET_CUDNN_AUTOTUNE_DEFAULT'] = '0'
 
-    root_dir = os.path.join(args.data_dir)
-    net = UNet(64, args.num_classes)
-    net.initialize(init=init.Xavier(), ctx=ctx)
-    print(net)
-
+    # Hyperparameters
+    args.num_epochs = 5
+    args.batch_size = 16
+    args.num_classes = 2
     batch_size = args.batch_size
-    num_workers =  4
+    num_workers = 2
 
-    train_imgs = SegDataset(root='./data/train')
-    test_imgs = SegDataset(root='./data/test')
+    root_dir = os.path.join(args.data_dir)
+
+    train_imgs = SegDataset(root='./data/train', colormap=COLORMAP, classes=CLASSES)
+    test_imgs = SegDataset(root='./data/test', colormap=COLORMAP, classes=CLASSES)
 
     train_iter = gdata.DataLoader(train_imgs,batch_size=batch_size,shuffle=True,num_workers=num_workers,last_batch='keep')
     test_iter = gdata.DataLoader(test_imgs,batch_size=batch_size,shuffle=True,num_workers=num_workers,last_batch='keep')
     loss = gloss.SoftmaxCrossEntropyLoss(axis=1)
+
     if args.optimizer == 'sgd':
         optimizer_params = {'learning_rate': args.learning_rate, 'momentum': args.momentum}
     else:
         optimizer_params = {'learning_rate': args.learning_rate}
 
-    trainer = gluon.Trainer(net.collect_params(),args.optimizer,optimizer_params)
-    net = UNet(channels = 3, num_class = 1)
-    # net.hybridize() # Causes errror with the SHAPE
+    net = UNet(channels = 3, num_class = args.num_classes)
     net.initialize(init=init.Xavier(), ctx=ctx)
+    # net.hybridize() # Causes errror with the SHAPE
+    # net.initialize(ctx=ctx)
     print(net)
-    # Initialize network
+
+    trainer = gluon.Trainer(net.collect_params(),args.optimizer,optimizer_params)
     train(train_iter, test_iter, net, loss, trainer, ctx, num_epochs=args.num_epochs, log_dir=args.log_dir)
     print('Done')
