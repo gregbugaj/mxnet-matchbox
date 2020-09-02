@@ -18,3 +18,12 @@ https://arxiv.org/abs/1411.1784
 https://lmb.informatik.uni-freiburg.de/people/ronneber/u-net/
 https://aws.amazon.com/blogs/machine-learning/segmenting-brain-tissue-using-apache-mxnet-with-amazon-sagemaker-and-aws-greengrass-ml-inference-part-1/
 https://github.com/lyakaap/Kaggle-Carvana-3rd-Place-Solution
+
+
+https://www.kaggle.com/drn01z3/end-to-end-baseline-with-u-net-keras
+
+https://www.kaggle.com/jiageng/mxnet-gluon-classification
+
+
+https://pywick.readthedocs.io/en/latest/_modules/pywick/models/segmentation/u_net.html#UNet
+https://www.kaggle.com/jiageng/mxnet-gluon-classification/data

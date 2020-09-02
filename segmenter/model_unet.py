@@ -6,8 +6,7 @@ from mxnet import autograd, nd, init, image
 import numpy as np
 import logging
 
-logging.basicConfig(level=logging.INFO)
-
+logging.basicConfig(level=logging.CRITICAL)
 
 class BaseConvBlock(nn.HybridBlock):
     def __init__(self, channels, **kwargs):
@@ -45,7 +44,6 @@ class UpSampleBlock(nn.HybridSequential):
     def hybrid_forward(self, F, x1, *args, **kwargs):
         x2 = args[0]
         x1 = self.up(x1)
-
         # The same as paper
         # x2 = x2[:, :, :x1.shape[2], : x1.shape[3]]
 
@@ -67,11 +65,11 @@ class UNet(nn.HybridSequential):
     def __init__(self, channels, num_class, **kwargs):
         super(UNet, self).__init__(**kwargs)
 
-        # contracting path
+        # contracting path -> encoder
         self.input_conv = BaseConvBlock(64)
         for i in range(4):
             setattr(self, 'down_conv_%d' % i, DownSampleBlock(channels * 2 ** (i + 1)))
-        # expanding path
+        # expanding path  -> decoder
         for i in range(4):
             setattr(self, 'up_conv_%d' % i, UpSampleBlock(channels * 16 // (2 ** (i + 1))))
         self.output_conv = nn.Conv2D(num_class, kernel_size=1)

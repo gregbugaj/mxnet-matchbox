@@ -42,7 +42,7 @@ Move all generated files to `datasets` directory
 ## cleanup
 
 ```
-ps aux | grep 'train_ssd' | awk '{print $2}' | xargs kill
+ps aux | grep 'segmenter' | awk '{print $2}' | xargs kill
 ```
 
 ## Notes 

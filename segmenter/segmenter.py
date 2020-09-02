@@ -63,22 +63,9 @@ CLASSES = ['background', 'form']
 
 def _get_batch(batch, ctx, is_even_split=True):
     features, labels = batch
-    print('--'*20)
-    print(features.shape)
-    print(labels.shape)
-    print('++'*20)
-
     if labels.dtype != features.dtype:
         labels = labels.astype(features.dtype)
-    
-    fsplit = gutils.split_and_load(features, ctx, even_split=is_even_split)
-    lsplit = gutils.split_and_load(labels, ctx, even_split=is_even_split) 
-    print(fsplit[0].shape)
-    print(lsplit[0].shape)
-    print(features.shape[0])
-    print('++'*20)
-    
-    return fsplit, lsplit, features.shape[0]
+    return gutils.split_and_load(features, ctx, even_split=is_even_split), gutils.split_and_load(labels, ctx, even_split=is_even_split), features.shape[0]
 
 
 def evaluate_accuracy(data_iter, net, ctx):
@@ -96,19 +83,21 @@ def evaluate_accuracy(data_iter, net, ctx):
 
 def train(train_iter, test_iter, net, loss, trainer, ctx, num_epochs, log_dir='./', checkpoints_dir='./checkpoints'):
     """Train model and genereate checkpoints"""
-    print('Training network : ', num_epochs)
+    print('Training network  : %d' % (num_epochs))
+    print(ctx)
     if isinstance(ctx, mx.Context):
         ctx = [ctx]
 
     if not os.path.exists(checkpoints_dir):
         os.makedirs(checkpoints_dir)
+        
     with open(log_dir + os.sep + 'UNet_log.txt', 'w') as f:
         print('training on', ctx, file=f)
         for epoch in range(num_epochs):
             print('epoch # : ', epoch)
             train_l_sum, train_acc_sum, n, m, start = 0.0, 0.0, 0, 0, time.time()
             for i, batch in enumerate(train_iter):
-                print("Batch Index : ", i)
+                print("Batch Index : %d" % (i))
                 xs, ys, batch_size = _get_batch(batch, ctx)
                 ls = []
                 with autograd.record():
@@ -121,14 +110,31 @@ def train(train_iter, test_iter, net, loss, trainer, ctx, num_epochs, log_dir='.
                 n += sum([l.size for l in ls])
                 train_acc_sum += sum([(y_hat.argmax(axis=1) == y).sum().asscalar() for y_hat, y in zip(y_hats, ys)])
                 m += sum([y.size for y in ys])
+
             test_acc = evaluate_accuracy(test_iter, net, ctx)
             print('epoch %d, loss %.4f, train acc %.3f, test acc %.3f, time %.3f sec'
                   % (epoch + 1, train_l_sum / n, train_acc_sum / m, test_acc, time.time() - start), file=f)
             print('epoch %d, loss %.4f, train acc %.3f, test acc %.3f, time %.3f sec'
                   % (epoch + 1, train_l_sum / n, train_acc_sum / m, test_acc, time.time() - start))
 
+            # Save all checkpoints
+            net.save_parameters(os.path.join(checkpoints_dir, 'epoch_%04d_model.params' % (epoch + 1)))
             if epoch != 1 and (epoch + 1) % 50 == 0:
-                net.save_parameters(checkpoints_dir + os.sep + 'epoch_%04d_model.params' % (epoch + 1))
+                net.save_parameters(os.path.join(checkpoints_dir, 'epoch_%04d_model.params' % (epoch + 1)))
+
+        # file_name = "net"
+        # net.export(file_name)
+        # print('Network saved : %s' % (file_name))
+
+def save_params(net, best_map, current_map, epoch, save_interval, prefix):
+    current_map = float(current_map)
+    if current_map > best_map[0]:
+        best_map[0] = current_map
+        net.save_parameters('{:s}_best.params'.format(prefix, epoch, current_map))
+        with open(prefix+'_best_map.log', 'a') as f:
+            f.write('{:04d}:\t{:.4f}\n'.format(epoch, current_map))
+    if save_interval and epoch % save_interval == 0:
+        net.save_parameters('{:s}_{:04d}_{:.4f}.params'.format(prefix, epoch, current_map))
 
 
 def parse_args():
@@ -140,31 +146,15 @@ def parse_args():
 
     parser.add_argument('--data-dest', dest='data_dir_dest', 
                         help='data directory to output images to', default=os.path.join(os.getcwd(), 'data', 'out'), type=str)
-
-    parser.add_argument('--version',
-                        action='version',
-                        version='%(prog)s 1.0')
     parser.add_argument('--gpu_id',
                         help='a list to enable GPUs. (defalult: %(default)s)',
                         nargs='*',
                         type=int,
                         default=None)
-    parser.add_argument('--is_crop',
-                        help='a flag to enable cropping. (default: %(default)s)',
-                        type=bool,
-                        default=True)
-    parser.add_argument('--crop_height',
-                        help='the height to crop the images. (default: %(default)s)',
-                        type=int,
-                        default=572)
-    parser.add_argument('--crop_width',
-                        help='the width to crop the images. (default: %(default)s)',
-                        type=int,
-                        default=572)
     parser.add_argument('--learning_rate',
                         help='the learning rate of optimizer. (default: %(default)s)',
                         type=float,
-                        default=0.1)
+                        default=0.01)
     parser.add_argument('--momentum',
                         help='the momentum of optimizer. (default: %(default)s))',
                         type=float,
@@ -205,8 +195,12 @@ def parse_args():
     return parser.parse_args()
 
 if __name__ == '__main__':
+
+    mx.random.seed(1)
+
     args = parse_args()
     print(args)
+    args.gpu_id = '0'
 
     if args.gpu_id is None:
         ctx = [mx.cpu()]
@@ -220,14 +214,13 @@ if __name__ == '__main__':
         os.environ['MXNET_CUDNN_AUTOTUNE_DEFAULT'] = '0'
 
     # Hyperparameters
-    args.num_epochs = 5
-    args.batch_size = 16
+    args.num_epochs = 20
+    args.batch_size = 8
     args.num_classes = 2
     batch_size = args.batch_size
-    num_workers = 2
+    num_workers = 4
 
     root_dir = os.path.join(args.data_dir)
-
     train_imgs = SegDataset(root='./data/train', colormap=COLORMAP, classes=CLASSES)
     test_imgs = SegDataset(root='./data/test', colormap=COLORMAP, classes=CLASSES)
 
@@ -242,10 +235,25 @@ if __name__ == '__main__':
 
     net = UNet(channels = 3, num_class = args.num_classes)
     net.initialize(init=init.Xavier(), ctx=ctx)
-    # net.hybridize() # Causes errror with the SHAPE
+    # https://mxnet.apache.org/versions/1.6/api/python/docs/tutorials/packages/gluon/blocks/hybridize.html
+    # net.hybridize() # Causes errror with the SHAPE  
     # net.initialize(ctx=ctx)
     print(net)
+    # net.summary(nd.ones((5,1,512,512)))
 
     trainer = gluon.Trainer(net.collect_params(),args.optimizer,optimizer_params)
     train(train_iter, test_iter, net, loss, trainer, ctx, num_epochs=args.num_epochs, log_dir=args.log_dir)
+
+    for i, batch in enumerate(test_iter):
+        features, labels = batch
+        feature = gutils.split_and_load(features, ctx, even_split=True)
+        label = gutils.split_and_load(labels, ctx, even_split=True)
+        print('--'*20)
+        print('i = ', i)
+        print(feature[0].shape)
+        print(labels[0].shape)
+        print(labels.shape)
+
+    print("Batch complete")
+
     print('Done')

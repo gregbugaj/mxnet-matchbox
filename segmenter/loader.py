@@ -5,27 +5,9 @@ import numpy as np
 import os
 import mxnet as mx
 
-# https://mxnet.apache.org/versions/1.2.1/tutorials/gluon/datasets.html
-
-def read_images(root):
-    img_dir = os.path.join(root, 'image')
-    mask_dir = os.path.join(root, 'mask')
-    mask_filenames = os.listdir(mask_dir)
-    img_filenames = os.listdir(img_dir) 
-
-    if len(img_filenames) != len(mask_filenames):
-        raise Exception('Wrong size')
-
-    features, labels = [None] * len(img_filenames), [None] * len(mask_filenames)
-    for i, fname in enumerate(img_filenames):
-        features[i] = image.imread(os.path.join(img_dir, fname))
-        labels[i] = image.imread(os.path.join(mask_dir, fname))
-
-    return features, labels
-
 class SegDataset(gdata.Dataset):
     def __init__(self, root, transform = None, colormap = None, classes=None):
-       features, labels = read_images(root)
+       features, labels = self.read_images(root)
        self.rgb_mean = nd.array([0.448, 0.456, 0.406])
        self.rgb_std = nd.array([0.229, 0.224, 0.225])
        self.transform = transform
@@ -39,15 +21,32 @@ class SegDataset(gdata.Dataset):
     def normalize_image(self, img):
         return (img.astype('float32') / 255.0 - self.rgb_mean) / self.rgb_std
 
+    # https://mxnet.apache.org/versions/1.2.1/tutorials/gluon/datasets.html
 
-    def label_indices(self,img):  
+    def read_images(self, root):
+        img_dir = os.path.join(root, 'image')
+        mask_dir = os.path.join(root, 'mask')
+        mask_filenames = os.listdir(mask_dir)
+        img_filenames = os.listdir(img_dir) 
+
+        if len(img_filenames) != len(mask_filenames):
+            raise Exception('Wrong size')
+
+        features, labels = [None] * len(img_filenames), [None] * len(mask_filenames)
+        for i, fname in enumerate(img_filenames):
+            features[i] = image.imread(os.path.join(img_dir, fname))
+            labels[i] = image.imread(os.path.join(mask_dir, fname))
+
+        return features, labels
+
+    def label_indices(self, img):  
         if self.colormap2label is None:
-            self.colormap2label = nd.zeros(256**3)
-
+            self.colormap2label = nd.zeros(256 ** 3)
             for i, cm in enumerate(self.colormap):
                 self.colormap2label[(cm[0] * 256 + cm[1]) * 256 + cm[2]] = i
-        data = img.astype('int32')
-        idx = (data[:, :, 0] * 256 + data[:, :, 1]) * 256 + data[:, :, 2]
+
+        colormap = img.astype('int32')
+        idx = (colormap[:, :, 0] * 256 + colormap[:, :, 1]) * 256 + colormap[:, :, 2]
         return self.colormap2label[idx]
 
     def __getitem__(self, idx):
@@ -56,21 +55,14 @@ class SegDataset(gdata.Dataset):
             return self.transform(feature, label)
         # 2x512x512x3 
         # convert into BxCxHxW        
-        # print(feature.shape)
-        # print(feature.transpose((2, 0, 1)).shape)
-        # return feature, label
-        return feature.transpose((2, 0, 1)), self.label_indices(label)
+        _label = self.label_indices(label)
+        _feature = feature.transpose((2, 0, 1))
+        if _feature.shape[1] != _label.shape[0]:
+            raise ValueError('Shape mismatch : %s, %s' %(_feature.shape, _label.shape))
+        return _feature, _label # self.label_indices(label)
         
     def __len__(self):
         return len(self.features)
-
-def _get_batch(batch, ctx, is_even_split=True):
-    if isinstance(ctx, mx.Context):
-        ctx = [ctx]
-    features, labels = batch
-    if labels.dtype != features.dtype:
-        labels = labels.astype(features.dtype)
-    return gutils.split_and_load(features, ctx, even_split=is_even_split), gutils.split_and_load(labels, ctx, even_split=is_even_split), features.shape[0]
 
 if __name__ == '__main__':
     print('Loader test')
@@ -87,6 +79,9 @@ if __name__ == '__main__':
         features, labels = batch
         feature = gutils.split_and_load(features, ctx, even_split=True)
         label = gutils.split_and_load(labels, ctx, even_split=True)
-        print(feature[0].shape)
-        print(labels[0].shape)
+        print('i = ', i)
+        # print(feature[0].shape)
+        # print(labels[0].shape)
         # print(labels.shape)
+
+    print("Batch complete")
