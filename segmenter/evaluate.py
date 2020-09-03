@@ -63,9 +63,9 @@ if __name__ == '__main__':
     ctx = [mx.cpu()]
 
     net = UNet(channels = 3, num_class = n_classes)
-    net.load_parameters('./checkpoints/epoch_0098_model.params', ctx=ctx)
+    net.load_parameters('./checkpoints/epoch_0357_model.params', ctx=ctx)
 
-    image_path = './data/test/image/25.png'
+    image_path = './data/train/image/3.png'
     img = image.imread(image_path)
     normal = normalize_image(img)
 

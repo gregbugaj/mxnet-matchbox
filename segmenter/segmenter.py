@@ -94,10 +94,10 @@ def train(train_iter, test_iter, net, loss, trainer, ctx, num_epochs, log_dir='.
     with open(log_dir + os.sep + 'UNet_log.txt', 'w') as f:
         print('training on', ctx, file=f)
         for epoch in range(num_epochs):
-            print('epoch # : ', epoch)
+            # print('epoch # : ', epoch)
             train_l_sum, train_acc_sum, n, m, start = 0.0, 0.0, 0, 0, time.time()
             for i, batch in enumerate(train_iter):
-                print("Batch Index : %d" % (i))
+                # print("Batch Index : %d" % (i))
                 xs, ys, batch_size = _get_batch(batch, ctx)
                 ls = []
                 with autograd.record():
@@ -214,7 +214,7 @@ if __name__ == '__main__':
         os.environ['MXNET_CUDNN_AUTOTUNE_DEFAULT'] = '0'
 
     # Hyperparameters
-    args.num_epochs = 100
+    args.num_epochs = 1000
     args.batch_size = 8
     args.num_classes = 2
     batch_size = args.batch_size
