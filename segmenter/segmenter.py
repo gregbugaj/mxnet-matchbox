@@ -200,7 +200,7 @@ if __name__ == '__main__':
 
     args = parse_args()
     print(args)
-    args.gpu_id = '0'
+    # args.gpu_id = '0'
 
     if args.gpu_id is None:
         ctx = [mx.cpu()]
