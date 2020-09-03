@@ -10,12 +10,7 @@ import matplotlib.pyplot as plt
 from mxnet.gluon import loss as gloss, data as gdata, utils as gutils
 import sys
 import numpy
-numpy.set_printoptions(threshold=sys.maxsize)
-
-def normalize_image(img):
-    rgb_mean = nd.array([0.448, 0.456, 0.406])
-    rgb_std = nd.array([0.229, 0.224, 0.225])
-    return (img.astype('float32') / 255.0)
+# numpy.set_printoptions(threshold=sys.maxsize)
 
 def v1():
     # ctx = mx.cpu()gpu
@@ -23,7 +18,7 @@ def v1():
     net = UNet(channels = 3, num_class = 2)
     net.load_parameters('./checkpoints/epoch_0020_model.params', ctx=ctx)
     print(net)
-    image_path = './data/train/image/0.png'
+    image_path = './data/train/image/3.png'
     # load an image for prediction
     
     img = mx.image.imread(image_path)
@@ -72,16 +67,22 @@ def load_imageXXX(img, width, height):
     data = mx.ndarray.expand_dims(data, axis=0)
     return data
 
+def normalize_image(img):
+    print(type(img))
+    rgb_mean = nd.array([0.448, 0.456, 0.406])
+    rgb_std = nd.array([0.229, 0.224, 0.225])
+
+    # raw = (img.astype('float32') / 255.0  - .448) / .229
+    raw = (img.astype('float32') / 255.0 - rgb_mean) /rgb_std
+    return mx.nd.array(raw)
+    # return (img.astype('float32') / 255.0 - rgb_mean) /rgb_std
 
 def load_image(img, width, height):
     data = np.transpose(img, (2, 0, 1))
     data = mx.nd.array(data) # from numpy.ndarray to mxnet ndarray.
-    print(data.shape)
-    # Exand shape into (B x H x W x c)
+    # Expand shape into (B x H x W x c)
     data = data.astype('float32')
-    data = mx.ndarray.expand_dims(data, axis=0)
-    return data
-
+    return mx.ndarray.expand_dims(data, axis=0)
 
 def visualize(img_arr):
     plt.imshow(((img_arr.asnumpy().transpose(1, 2, 0) + 1.0) * 127.5).astype(np.uint8))
@@ -109,12 +110,12 @@ def v2():
         break
     print("Batch complete")
 
-def post_process_maskB(label, img_cols, img_rows, n_classes, p=0.5):
+def post_process_mask(label, img_cols, img_rows, n_classes, p=0.5):
     return (np.where(label.asnumpy().reshape(img_cols, img_rows) > p, 1, 0)).astype('uint8')
 
 def post_process_maskA(label, img_cols, img_rows, n_classes, p=0.5):
     pr = label.reshape(n_classes, img_cols, img_rows).transpose([1,2,0]).argmax(axis=2)
-    return pr.asnumpy() #(pr*255).asnumpy()
+    return (pr*255).asnumpy()
 
 if __name__ == '__main__':
     print('Evaluating')
@@ -125,7 +126,8 @@ if __name__ == '__main__':
 
     net = UNet(channels = 3, num_class = n_classes)
     net.load_parameters('./checkpoints/epoch_0010_model.params', ctx=ctx)
-    image_path = './data/train/image/0.png'
+
+    image_path = './data/train/image/5.png'
     # a = mx.nd.normal(shape=(1, 3, 512, 512))
     # logits = net(a)
     # print(logits.shape)
@@ -136,17 +138,34 @@ if __name__ == '__main__':
     print(imgX.shape)
     # cv2.imshow('test', testimg)
     # cv2.waitKey()
-    
-    img = mx.random.uniform(0, 255, (512, 512, 3)).astype('uint8')
-    img = np.transpose(img, (2, 0, 1))
+
+    normal = normalize_image(testimg)
+    # img = mx.random.uniform(0, 255, (512, 512, 3)).astype('uint8')
+    img = np.transpose(normal, (2, 0, 1))
     img = mx.ndarray.expand_dims(img, axis=0)
-    data = imgX.astype(np.float32)
+    data = img #imgX.astype(np.float32)
 
-    out = net(data).argmax(axis=1)
-    print(out.shape)
-    mask = post_process_maskB(out, 512, 512, 2, p = 0.5)
+    # width = 12
+    # height = 12
+    # plt.figure(figsize=(width, height))
+    # plt.subplot(121)
+    # plt.imshow(normal, cmap=plt.cm.gray)
+    # plt.show()
 
-    print(mask.shape)
+    # plt.subplot(122)
+    # plt.imshow(post_process(batch.data[0][idx]).asnumpy()*post_process_mask(outputs[idx]), cmap=plt.cm.gray)
+    #out = net(data).argmax(axis=1)
+    out = net(data)
+    out = mx.nd.SoftmaxActivation(out)
+    pred = mx.nd.argmax(out, axis=1)
+    mask = post_process_mask(pred, 512, 512, 2, p = 0.5)
+
+  #  pred = int(mx.nd.argmax(out, axis=1).asscalar())
+   # prob = out[0][pred].asscalar()
+    #print(out.shape)
+    #mask = post_process_maskA(out, 512, 512, 2, p = 0.5)
+    #print(mask.shape)
+
 
     # ost_process_mask(label, img_cols, img_rows, n_classes, p=0.5):
     # mask = post_process_mask(out[0][1], 512, 512, 2, p = 0.5)
