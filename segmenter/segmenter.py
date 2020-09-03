@@ -214,11 +214,11 @@ if __name__ == '__main__':
         os.environ['MXNET_CUDNN_AUTOTUNE_DEFAULT'] = '0'
 
     # Hyperparameters
-    args.num_epochs = 20
+    args.num_epochs = 100
     args.batch_size = 8
     args.num_classes = 2
     batch_size = args.batch_size
-    num_workers = 4
+    num_workers = 8
 
     root_dir = os.path.join(args.data_dir)
     train_imgs = SegDataset(root='./data/train', colormap=COLORMAP, classes=CLASSES)
@@ -234,7 +234,7 @@ if __name__ == '__main__':
         optimizer_params = {'learning_rate': args.learning_rate}
 
     net = UNet(channels = 3, num_class = args.num_classes)
-    net.initialize(init=init.Xavier(), ctx=ctx)
+    net.initialize(init=init.Xavier(magnitude=6), ctx=ctx)
     # https://mxnet.apache.org/versions/1.6/api/python/docs/tutorials/packages/gluon/blocks/hybridize.html
     # net.hybridize() # Causes errror with the SHAPE  
     # net.initialize(ctx=ctx)

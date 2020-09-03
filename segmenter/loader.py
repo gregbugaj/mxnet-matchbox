@@ -59,7 +59,7 @@ class SegDataset(gdata.Dataset):
         _feature = feature.transpose((2, 0, 1))
         if _feature.shape[1] != _label.shape[0]:
             raise ValueError('Shape mismatch : %s, %s' %(_feature.shape, _label.shape))
-        return _feature, _label # self.label_indices(label)
+        return _feature, _label
         
     def __len__(self):
         return len(self.features)
@@ -70,7 +70,7 @@ if __name__ == '__main__':
     # image , mask
     # the RGB label of images and the names of lables
     COLORMAP = [[0, 0, 0], [255, 255, 255]]
-    CLASSES = ['background', 'form']
+    CLASSES = ['background', 'label']
 
     dataset = SegDataset('./data/train', transform = None, colormap=COLORMAP, classes=CLASSES)
     loader = mx.gluon.data.DataLoader(dataset, 1, num_workers=1)
