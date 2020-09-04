@@ -69,9 +69,10 @@ if __name__ == '__main__':
     ctx = [mx.cpu()]
 
     net = UNet(channels=3, num_class=n_classes)
-    net.load_parameters('./checkpoints/epoch_0357_model.params', ctx=ctx)
+    net.load_parameters('./unet_best.params', ctx=ctx)
+    # net.load_parameters('./checkpoints/epoch_0357_model.params', ctx=ctx)
 
-    image_path = './data/train/image/3.png'
+    image_path = './data/train/image/5.png'
     img = image.imread(image_path)
     normal = normalize_image(img)
 
@@ -90,11 +91,12 @@ if __name__ == '__main__':
     data = data.astype('float32')
     data = mx.ndarray.expand_dims(data, axis=0)
 
-    # out = net(data).argmax(axis=1)
-    out = net(data)
-    out = mx.nd.SoftmaxActivation(out)
-    pred = mx.nd.argmax(out, axis=1)
+    # out = net(data)
+    # out = mx.nd.SoftmaxActivation(out)
+    # pred = mx.nd.argmax(out, axis=1)
 
+    out = net(data)
+    pred = mx.nd.argmax(out, axis=1)
     mask = post_process_mask(pred, 512, 512, 2, p=0.5)
 
     ax3.imshow(mask, cmap=plt.cm.gray)

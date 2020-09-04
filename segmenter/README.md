@@ -27,3 +27,12 @@ https://www.kaggle.com/jiageng/mxnet-gluon-classification
 
 https://pywick.readthedocs.io/en/latest/_modules/pywick/models/segmentation/u_net.html#UNet
 https://www.kaggle.com/jiageng/mxnet-gluon-classification/data
+
+
+https://medium.com/@pallawi.ds/semantic-segmentation-with-u-net-train-and-test-on-your-custom-data-in-keras-39e4f972ec89
+https://medium.com/@pallawi.ds/understand-semantic-segmentation-with-the-fully-convolutional-network-u-net-step-by-step-9d287b12c852
+
+## Todo
+Resnet Block
+Batchn Norm
+Dropout

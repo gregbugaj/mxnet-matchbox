@@ -4,27 +4,15 @@ import cv2
 import pandas as pd
 
 from mxnet.gluon import loss as gloss, data as gdata, utils as gutils
-import mxnet as mx
 import sys
-import os
 import time
 
-from loader import SegDataset
 from mxnet import autograd as ag
 import mxnet as mx
 from mxnet.metric import Accuracy, TopKAccuracy, CompositeEvalMetric
 from mxnet import nd, gluon, init, autograd
 from mxnet.gluon import nn
-from mxnet.contrib.io import DataLoaderIter
 from mxnet.gluon.data import DataLoader
-from mxnet.gluon.data.vision import ImageFolderDataset
-from gluoncv.model_zoo import get_model
-
-import time
-import random
-import os
-import argparse
-import cv2
 
 import numpy as np
 import shutil
@@ -35,10 +23,12 @@ from os.path import isfile, join
 from os import walk
 import matplotlib.pyplot as plt
 
-from model_unet import UNet
-
 from collections import namedtuple
 from mxboard import *
+
+# module
+from loader import SegDataset
+from model_unet import UNet
 
 # logging
 import logging
@@ -278,8 +268,11 @@ def parse_args():
 
 
 if __name__ == '__main__':
-    mx.random.seed(1)
-    log.info('test')
+
+    seed = 42
+    random.seed = seed
+    np.random.seed = seed
+    mx.random.seed(seed)
 
     args = parse_args()
     print(args)
@@ -311,6 +304,7 @@ if __name__ == '__main__':
                                   last_batch='keep')
     test_iter = gdata.DataLoader(test_imgs, batch_size=batch_size, shuffle=True, num_workers=num_workers,
                                  last_batch='keep')
+
     loss = gloss.SoftmaxCrossEntropyLoss(axis=1)
 
     if args.optimizer == 'sgd':
