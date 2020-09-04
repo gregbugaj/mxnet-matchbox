@@ -11,12 +11,13 @@ import matplotlib.pyplot as plt
 from mxnet.gluon import loss as gloss, data as gdata, utils as gutils
 import sys
 import numpy
-# numpy.set_printoptions(threshold=sys.maxsize)
 
+
+# numpy.set_printoptions(threshold=sys.maxsize)
 
 def load_imageXXX(img, width, height):
     im = np.zeros((height, width, 3), dtype='uint8')
-    #im[:, :, :] = 128
+    # im[:, :, :] = 128
     if img.shape[0] >= img.shape[1]:
         scale = img.shape[0] / height
         new_width = int(img.shape[1] / scale)
@@ -38,22 +39,27 @@ def load_imageXXX(img, width, height):
     data = mx.ndarray.expand_dims(data, axis=0)
     return data
 
+
 def normalize_image(img):
     rgb_mean = nd.array([0.448, 0.456, 0.406])
     rgb_std = nd.array([0.229, 0.224, 0.225])
-    return  (img.astype('float32') / 255.0 - rgb_mean) /rgb_std
+    return (img.astype('float32') / 255.0 - rgb_mean) / rgb_std
+
 
 def load_image(img, width, height):
     data = np.transpose(img, (2, 0, 1))
     # Expand shape into (B x H x W x c)
     return mx.nd.expand_dims(data, axis=0)
 
+
 def post_process_mask(label, img_cols, img_rows, n_classes, p=0.5):
     return (np.where(label.asnumpy().reshape(img_cols, img_rows) > p, 1, 0)).astype('uint8')
 
+
 def post_process_maskA(label, img_cols, img_rows, n_classes, p=0.5):
-    pr = label.reshape(n_classes, img_cols, img_rows).transpose([1,2,0]).argmax(axis=2)
-    return (pr*255).asnumpy()
+    pr = label.reshape(n_classes, img_cols, img_rows).transpose([1, 2, 0]).argmax(axis=2)
+    return (pr * 255).asnumpy()
+
 
 if __name__ == '__main__':
     print('Evaluating')
@@ -62,10 +68,15 @@ if __name__ == '__main__':
     img_height = 512
     ctx = [mx.cpu()]
 
-    net = UNet(channels = 3, num_class = n_classes)
-    net.load_parameters('./checkpoints/epoch_0357_model.params', ctx=ctx)
+    net = UNet(channels=3, num_class=n_classes)
+    net.load_parameters('./unet_best.params', ctx=ctx)
+    # net.load_parameters('./checkpoints/epoch_0357_model.params', ctx=ctx)
 
+<<<<<<< HEAD
     image_path = './data/test/image/25.png'
+=======
+    image_path = './data/train/image/5.png'
+>>>>>>> e94f877d6f85d7387341dab26f290d7ee37eca1a
     img = image.imread(image_path)
     normal = normalize_image(img)
 
@@ -77,21 +88,20 @@ if __name__ == '__main__':
 
     ax1.imshow(img.asnumpy(), cmap=plt.cm.gray)
     ax2.imshow(normal.asnumpy(), cmap=plt.cm.gray)
-  
+
     # Transform into required BxCxHxW shape
     data = np.transpose(normal, (2, 0, 1))
     # Exand shape into (B x H x W x c)
     data = data.astype('float32')
     data = mx.ndarray.expand_dims(data, axis=0)
 
-    # out = net(data).argmax(axis=1)
+    # out = net(data)
+    # out = mx.nd.SoftmaxActivation(out)
+    # pred = mx.nd.argmax(out, axis=1)
+
     out = net(data)
-    out = mx.nd.SoftmaxActivation(out)
     pred = mx.nd.argmax(out, axis=1)
-    
-    mask = post_process_mask(pred, 512, 512, 2, p = 0.5)
+    mask = post_process_mask(pred, 512, 512, 2, p=0.5)
 
     ax3.imshow(mask, cmap=plt.cm.gray)
     plt.show()
- 
-  

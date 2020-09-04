@@ -4,9 +4,9 @@
 from mxnet.gluon import nn, loss as gloss, data as gdata
 from mxnet import autograd, nd, init, image
 import numpy as np
-import logging
+# import logging
 
-logging.basicConfig(level=logging.CRITICAL)
+# logging.basicConfig(level=logging.CRITICAL)
 
 class BaseConvBlock(nn.HybridBlock):
     def __init__(self, channels, **kwargs):
@@ -18,7 +18,7 @@ class BaseConvBlock(nn.HybridBlock):
 
     def hybrid_forward(self, F, x, *args, **kwargs):
         x = F.relu(self.conv1(x))
-        logging.info(x.shape)
+        # logging.info(x.shape)
         return F.relu(self.conv2(x))
 
 
@@ -30,7 +30,7 @@ class DownSampleBlock(nn.HybridBlock):
 
     def hybrid_forward(self, F, x, *args, **kwargs):
         x = self.maxPool(x)
-        logging.info(x.shape)
+        # logging.info(x.shape)
         return self.conv(x)
 
 
@@ -57,7 +57,7 @@ class UpSampleBlock(nn.HybridSequential):
                                diffY // 2, diffY - diffY // 2,
                                diffX // 2, diffX - diffX // 2))
         x = nd.concat(x1, x2, dim=1)
-        logging.info(x.shape)
+        # logging.info(x.shape)
         return self.conv(x)
 
 
@@ -75,24 +75,24 @@ class UNet(nn.HybridSequential):
         self.output_conv = nn.Conv2D(num_class, kernel_size=1)
 
     def hybrid_forward(self, F, x, *args, **kwargs):
-        logging.info('Contracting Path:')
+        # logging.info('Contracting Path:')
         x1 = self.input_conv(x)
-        logging.info(x1.shape)
+        # logging.info(x1.shape)
         x2 = getattr(self, 'down_conv_0')(x1)
-        logging.info(x2.shape)
+        # logging.info(x2.shape)
         x3 = getattr(self, 'down_conv_1')(x2)
-        logging.info(x3.shape)
+        # logging.info(x3.shape)
         x4 = getattr(self, 'down_conv_2')(x3)
-        logging.info(x4.shape)
+        # logging.info(x4.shape)
         x5 = getattr(self, 'down_conv_3')(x4)
-        logging.info(x5.shape)
-        logging.info('Expansive Path:')
+        # logging.info(x5.shape)
+        # logging.info('Expansive Path:')
         x = getattr(self, 'up_conv_0')(x5, x4)
-        logging.info(x.shape)
+        # logging.info(x.shape)
         x = getattr(self, 'up_conv_1')(x, x3)
-        logging.info(x.shape)
+        # logging.info(x.shape)
         x = getattr(self, 'up_conv_2')(x, x2)
-        logging.info(x.shape)
+        # logging.info(x.shape)
         x = getattr(self, 'up_conv_3')(x, x1)
-        logging.info(x.shape)
+        # logging.info(x.shape)
         return self.output_conv(x)
