@@ -37,20 +37,26 @@ import matplotlib.pyplot as plt
 
 from model_unet import UNet
 
-import logging
-import tarfile
-logging.basicConfig(level=logging.INFO)
+from collections import namedtuple
+from mxboard import *
+
 # logging
-logging.basicConfig(level=logging.INFO)
-fh = logging.FileHandler('segmenter.log')
-logger = logging.getLogger()
-logger.addHandler(fh)
-formatter = logging.Formatter('%(message)s')
-fh.setFormatter(formatter)
-fh.setLevel(logging.DEBUG)
-logging.debug('\n%s', '-' * 100)
-formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
-fh.setFormatter(formatter)
+import logging
+from logging.handlers import RotatingFileHandler
+from logging import handlers
+
+LOGFILE = 'segmenter.log'
+log = logging.getLogger('')
+log.setLevel(logging.DEBUG)
+format = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
+ch = logging.StreamHandler(sys.stdout)
+ch.setFormatter(format)
+log.addHandler(ch)
+
+fh = handlers.RotatingFileHandler(LOGFILE, maxBytes=(1048576 * 5), backupCount=7)
+fh.setFormatter(format)
+log.addHandler(fh)
 
 os.environ["MXNET_BACKWARD_DO_MIRROR"] = "1"
 os.environ["MXNET_CUDNN_AUTOTUNE_DEFAULT"] = "0"
@@ -58,14 +64,15 @@ os.environ["MXNET_CUDNN_AUTOTUNE_DEFAULT"] = "0"
 # the RGB label of images and the names of lables
 COLORMAP = [[0, 0, 0], [255, 255, 255]]
 CLASSES = ['background', 'form']
-
 # https://mxnet.apache.org/versions/1.2.1/tutorials/gluon/datasets.html
 
 def _get_batch(batch, ctx, is_even_split=True):
     features, labels = batch
     if labels.dtype != features.dtype:
         labels = labels.astype(features.dtype)
-    return gutils.split_and_load(features, ctx, even_split=is_even_split), gutils.split_and_load(labels, ctx, even_split=is_even_split), features.shape[0]
+    return gutils.split_and_load(features, ctx, even_split=is_even_split), gutils.split_and_load(labels, ctx,
+                                                                                                 even_split=is_even_split), \
+           features.shape[0]
 
 
 def evaluate_accuracy(data_iter, net, ctx):
@@ -73,7 +80,7 @@ def evaluate_accuracy(data_iter, net, ctx):
         ctx = [ctx]
     acc_sum, n = nd.array([0]), 0
     for batch in data_iter:
-        features, labels,_ =_get_batch(batch, ctx)
+        features, labels, _ = _get_batch(batch, ctx)
         for x, y in zip(features, labels):
             y = y.astype('float32')
             acc_sum += (net(x).argmax(axis=1) == y).sum().copyto(mx.cpu())
@@ -81,57 +88,125 @@ def evaluate_accuracy(data_iter, net, ctx):
         acc_sum.wait_to_read()
     return acc_sum.asscalar() / n
 
+
 def train(train_iter, test_iter, net, loss, trainer, ctx, num_epochs, log_dir='./', checkpoints_dir='./checkpoints'):
     """Train model and genereate checkpoints"""
     print('Training network  : %d' % (num_epochs))
-    print(ctx)
     if isinstance(ctx, mx.Context):
         ctx = [ctx]
 
     if not os.path.exists(checkpoints_dir):
         os.makedirs(checkpoints_dir)
-        
-    with open(log_dir + os.sep + 'UNet_log.txt', 'w') as f:
-        print('training on', ctx, file=f)
-        for epoch in range(num_epochs):
-            # print('epoch # : ', epoch)
-            train_l_sum, train_acc_sum, n, m, start = 0.0, 0.0, 0, 0, time.time()
-            for i, batch in enumerate(train_iter):
-                # print("Batch Index : %d" % (i))
-                xs, ys, batch_size = _get_batch(batch, ctx)
-                ls = []
-                with autograd.record():
-                    y_hats = [net(x) for x in xs]
-                    ls = [loss(y_hat, y) for y_hat, y in zip(y_hats, ys)]
-                for l in ls:
-                    l.backward()
-                trainer.step(batch_size)
-                train_l_sum += sum([l.sum().asscalar() for l in ls])
-                n += sum([l.size for l in ls])
-                train_acc_sum += sum([(y_hat.argmax(axis=1) == y).sum().asscalar() for y_hat, y in zip(y_hats, ys)])
-                m += sum([y.size for y in ys])
 
-            test_acc = evaluate_accuracy(test_iter, net, ctx)
-            print('epoch %d, loss %.4f, train acc %.3f, test acc %.3f, time %.3f sec'
-                  % (epoch + 1, train_l_sum / n, train_acc_sum / m, test_acc, time.time() - start), file=f)
-            print('epoch %d, loss %.4f, train acc %.3f, test acc %.3f, time %.3f sec'
-                  % (epoch + 1, train_l_sum / n, train_acc_sum / m, test_acc, time.time() - start))
+    # lr decay policy
+    lr_decay = float(args.lr_decay)
+    lr_steps = sorted([float(ls) for ls in args.lr_decay_epoch.split(',') if ls.strip()])
 
-            # Save all checkpoints
+    log.warning("Checkpoints : %s" % (checkpoints_dir))
+    log.info("[lr_steps {}] ".format(lr_steps))
+    # define a summary writer that logs data and flushes to the file every 5 seconds
+    sw = SummaryWriter(logdir='./logs', flush_secs=5)
+
+    # collect parameter names for logging the gradients of parameters in each epoch
+    params = net.collect_params()
+    param_names = params.keys()
+
+    best_epoch = -1
+    best_acc = 0.0
+    global_step = 0
+
+    log.info('training on : {}', ctx)
+
+    for epoch in range(num_epochs):
+        while lr_steps and epoch >= lr_steps[0]:
+            new_lr = trainer.learning_rate * lr_decay
+            lr_steps.pop(0)
+            trainer.set_learning_rate(new_lr)
+            log.info("[Epoch {}] Set learning rate to {}".format(epoch, new_lr))
+
+        # print('epoch # : ', epoch)
+        train_l_sum, train_acc_sum, n, m, start = 0.0, 0.0, 0, 0, time.time()
+        btic = time.time()
+        for i, batch in enumerate(train_iter):
+            # print("Batch Index : %d" % (i))
+            xs, ys, batch_size = _get_batch(batch, ctx)
+            ls = []
+            with autograd.record():
+                y_hats = [net(x) for x in xs]
+                ls = [loss(y_hat, y) for y_hat, y in zip(y_hats, ys)]
+            for l in ls:
+                l.backward()
+            trainer.step(batch_size)
+            train_l_sum += sum([l.sum().asscalar() for l in ls])
+            n += sum([l.size for l in ls])
+            train_acc_sum += sum([(y_hat.argmax(axis=1) == y).sum().asscalar() for y_hat, y in zip(y_hats, ys)])
+            m += sum([y.size for y in ys])
+
+            sw.add_scalar(tag='train_l_sum', value=train_l_sum, global_step=global_step)
+            global_step += 1
+
+        speed = batch_size / (time.time() - btic)
+        epoch_time = time.time() - start
+        test_acc = evaluate_accuracy(test_iter, net, ctx)
+
+        print('epoch %d, loss %.4f, train acc %.3f, test acc %.3f, time %.3f sec'
+              % (epoch + 1, train_l_sum / n, train_acc_sum / m, test_acc, epoch_time))
+        print('epoch %d, loss %.4f, train acc %.3f, test acc %.3f, time %.3f sec'
+              % (epoch + 1, train_l_sum / n, train_acc_sum / m, test_acc, epoch_time))
+
+        sw.add_scalar(tag='loss', value=(train_l_sum / n), global_step=epoch)
+        # logging training/validation/test accuracy
+        sw.add_scalar(tag='accuracy_curves', value=('train_acc', train_acc_sum / m), global_step=epoch)
+        sw.add_scalar(tag='accuracy_curves', value=('test_acc', test_acc), global_step=epoch)
+
+        # Training cost
+        sw.add_scalar(tag='cost_curves', value=('time', epoch_time), global_step=epoch)
+        sw.add_scalar(tag='cost_curves', value=('speed', speed), global_step=epoch)
+
+        grads = [i.grad() for i in net.collect_params().values()]
+        assert len(grads) == len(param_names)
+        # logging the gradients of parameters for checking convergence
+        for i, name in enumerate(param_names):
+            sw.add_histogram(tag=name, values=grads[i], global_step=epoch, bins=1000)
+
+        # Save all checkpoints
+        # net.save_parameters(os.path.join(checkpoints_dir, 'epoch_%04d_model.params' % (epoch + 1)))
+        if epoch != 1 and (epoch + 1) % 50 == 0:
             net.save_parameters(os.path.join(checkpoints_dir, 'epoch_%04d_model.params' % (epoch + 1)))
-            if epoch != 1 and (epoch + 1) % 50 == 0:
-                net.save_parameters(os.path.join(checkpoints_dir, 'epoch_%04d_model.params' % (epoch + 1)))
 
+        val_acc = test_acc
+        prefix = 'unet'
+        if val_acc > best_acc:
+            best_acc = val_acc
+            if best_epoch != -1:
+                print('Deleting previous checkpoint...')
+                fname = os.path.join('checkpoints', '%s-%d.params' % (prefix, best_epoch))
+                if os.path.isfile(fname):
+                    os.remove(fname)
+
+            best_epoch = epoch
+            print('Best validation accuracy found. Checkpointing...')
+            fname = os.path.join('checkpoints', '%s-%d-%f.params' % (prefix, best_epoch, val_acc))
+            net.save_parameters(fname)
+            log.info('[Epoch %d] Saving checkpoint to %s with Accuracy: %.4f', epoch, fname, val_acc)
+
+            net.save_parameters('{:s}_best.params'.format(prefix, epoch, val_acc))
+            with open(prefix + '_best.log', 'a') as f:
+                f.write('{:04d}:\t{:.4f}\n'.format(epoch, val_acc))
+
+        # if epoch == 0:
+        #     sw.add_graph(net)
         # file_name = "net"
         # net.export(file_name)
         # print('Network saved : %s' % (file_name))
+
 
 def save_params(net, best_map, current_map, epoch, save_interval, prefix):
     current_map = float(current_map)
     if current_map > best_map[0]:
         best_map[0] = current_map
         net.save_parameters('{:s}_best.params'.format(prefix, epoch, current_map))
-        with open(prefix+'_best_map.log', 'a') as f:
+        with open(prefix + '_best_map.log', 'a') as f:
             f.write('{:04d}:\t{:.4f}\n'.format(epoch, current_map))
     if save_interval and epoch % save_interval == 0:
         net.save_parameters('{:s}_{:04d}_{:.4f}.params'.format(prefix, epoch, current_map))
@@ -141,11 +216,12 @@ def parse_args():
     """Parse arguments."""
     parser = argparse.ArgumentParser(description='Image segmenter')
 
-    parser.add_argument('--data-src', dest='data_dir_src', 
+    parser.add_argument('--data-src', dest='data_dir_src',
                         help='data directory to use', default=os.path.join(os.getcwd(), 'data', 'images'), type=str)
 
-    parser.add_argument('--data-dest', dest='data_dir_dest', 
-                        help='data directory to output images to', default=os.path.join(os.getcwd(), 'data', 'out'), type=str)
+    parser.add_argument('--data-dest', dest='data_dir_dest',
+                        help='data directory to output images to', default=os.path.join(os.getcwd(), 'data', 'out'),
+                        type=str)
     parser.add_argument('--gpu_id',
                         help='a list to enable GPUs. (defalult: %(default)s)',
                         nargs='*',
@@ -155,6 +231,12 @@ def parse_args():
                         help='the learning rate of optimizer. (default: %(default)s)',
                         type=float,
                         default=0.01)
+
+    parser.add_argument('--lr-decay', type=float, default=0.1,
+                        help='decay rate of learning rate. default is 0.1.')
+    parser.add_argument('--lr-decay-epoch', type=str, default='250, 500, 700, 850, 925',
+                        help='epochs at which learning rate decays. default is 160,200.')
+
     parser.add_argument('--momentum',
                         help='the momentum of optimizer. (default: %(default)s))',
                         type=float,
@@ -194,9 +276,10 @@ def parse_args():
 
     return parser.parse_args()
 
-if __name__ == '__main__':
 
+if __name__ == '__main__':
     mx.random.seed(1)
+    log.info('test')
 
     args = parse_args()
     print(args)
@@ -215,7 +298,7 @@ if __name__ == '__main__':
 
     # Hyperparameters
     args.num_epochs = 1000
-    args.batch_size = 8
+    args.batch_size = 2
     args.num_classes = 2
     batch_size = args.batch_size
     num_workers = 8
@@ -224,8 +307,10 @@ if __name__ == '__main__':
     train_imgs = SegDataset(root='./data/train', colormap=COLORMAP, classes=CLASSES)
     test_imgs = SegDataset(root='./data/test', colormap=COLORMAP, classes=CLASSES)
 
-    train_iter = gdata.DataLoader(train_imgs,batch_size=batch_size,shuffle=True,num_workers=num_workers,last_batch='keep')
-    test_iter = gdata.DataLoader(test_imgs,batch_size=batch_size,shuffle=True,num_workers=num_workers,last_batch='keep')
+    train_iter = gdata.DataLoader(train_imgs, batch_size=batch_size, shuffle=True, num_workers=num_workers,
+                                  last_batch='keep')
+    test_iter = gdata.DataLoader(test_imgs, batch_size=batch_size, shuffle=True, num_workers=num_workers,
+                                 last_batch='keep')
     loss = gloss.SoftmaxCrossEntropyLoss(axis=1)
 
     if args.optimizer == 'sgd':
@@ -233,7 +318,7 @@ if __name__ == '__main__':
     else:
         optimizer_params = {'learning_rate': args.learning_rate}
 
-    net = UNet(channels = 3, num_class = args.num_classes)
+    net = UNet(channels=3, num_class=args.num_classes)
     net.initialize(init=init.Xavier(magnitude=6), ctx=ctx)
     # https://mxnet.apache.org/versions/1.6/api/python/docs/tutorials/packages/gluon/blocks/hybridize.html
     # net.hybridize() # Causes errror with the SHAPE  
@@ -241,19 +326,6 @@ if __name__ == '__main__':
     print(net)
     # net.summary(nd.ones((5,1,512,512)))
 
-    trainer = gluon.Trainer(net.collect_params(),args.optimizer,optimizer_params)
+    trainer = gluon.Trainer(net.collect_params(), args.optimizer, optimizer_params)
     train(train_iter, test_iter, net, loss, trainer, ctx, num_epochs=args.num_epochs, log_dir=args.log_dir)
-
-    for i, batch in enumerate(test_iter):
-        features, labels = batch
-        feature = gutils.split_and_load(features, ctx, even_split=True)
-        label = gutils.split_and_load(labels, ctx, even_split=True)
-        print('--'*20)
-        print('i = ', i)
-        print(feature[0].shape)
-        print(labels[0].shape)
-        print(labels.shape)
-
-    print("Batch complete")
-
     print('Done')
