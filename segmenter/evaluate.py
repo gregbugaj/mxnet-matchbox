@@ -39,12 +39,15 @@ def load_imageXXX(img, width, height):
     data = mx.ndarray.expand_dims(data, axis=0)
     return data
 
-
-def normalize_image(img):
+def normalize_image_global(img):
     rgb_mean = nd.array([0.448, 0.456, 0.406])
     rgb_std = nd.array([0.229, 0.224, 0.225])
     return (img.astype('float32') / 255.0 - rgb_mean) / rgb_std
 
+def normalize_image(img):
+    rgb_mean = nd.array([0.94040672, 0.94040672, 0.94040672])
+    rgb_std = nd.array([0.14480773, 0.14480773, 0.14480773])
+    return (img.astype('float32') / 255.0 - rgb_mean) / rgb_std
 
 def load_image(img, width, height):
     data = np.transpose(img, (2, 0, 1))
@@ -61,19 +64,48 @@ def post_process_maskA(label, img_cols, img_rows, n_classes, p=0.5):
     return (pr * 255).asnumpy()
 
 
+def showAndDestroy(label, image):
+    cv2.imshow(label, image)
+    cv2.waitKey(0)           
+    cv2.destroyAllWindows() 
+
+
 if __name__ == '__main__':
     print('Evaluating')
+    payload = np.array([
+            [824,154],
+            [199,162],
+            [206,898],
+            [832,888]])
+
+    print(payload)
+    a = payload
+    ind = np.lexsort((a[:,1],a[:,0]))  
+    # out = np.sort(payload)
+    print(ind)
+    print(a[ind])
+    # raise ValueError('done')
+
     n_classes = 2
-    img_width = 512
-    img_height = 512
+    img_width = 1024
+    img_height = 1024
     ctx = [mx.cpu()]
 
     net = UNet(channels=3, num_class=n_classes)
     net.load_parameters('./unet_best.params', ctx=ctx)
     # net.load_parameters('./checkpoints/epoch_0357_model.params', ctx=ctx)
-    image_path = './data/train/image/5.png'
+    image_path = './data/validation/image/270205_202006300008659_001.tif.png' # Incorrect aspect ratio
+    # image_path = './data/validation/image/269936_202006290009913_001.tif.png' # Incorrect aspect ratio
+    image_path = './data/validation/image/270171_202006300007751_001.tif.png'
+
+    name = image_path.split('/')[-1]
+
+    # image_path = './data/train/image/269792_202006290007435_001.tif.png'
+    # image_path = '/home/greg/data-hipaa/forms/hcfa-allstate/269689_202006290005163_001.tif'
+    
     img = image.imread(image_path)
     normal = normalize_image(img)
+    (img_height, img_width, _) = img.shape
 
     fig = plt.figure(figsize=(16, 16))
     ax1 = fig.add_subplot(221)
@@ -96,7 +128,56 @@ if __name__ == '__main__':
 
     out = net(data)
     pred = mx.nd.argmax(out, axis=1)
-    mask = post_process_mask(pred, 512, 512, 2, p=0.5)
+    mask = post_process_mask(pred, img_width, img_height, 2, p=0.5)
 
-    ax3.imshow(mask, cmap=plt.cm.gray)
+    ax4.imshow(mask, cmap=plt.cm.gray)
+
+    # Extract ROI
+    img = cv2.imread(image_path) 
+    (cnts, _) = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    for c in cnts:
+        # approximate the contour
+        peri = cv2.arcLength(c, True)
+        approx = cv2.approxPolyDP(c, 0.01 * peri, True)
+
+        if len(approx) == 4:
+            # compute the bounding box of the approximated contour and use the bounding box to compute the aspect ratio
+            (x, y, w, h) = cv2.boundingRect(approx)
+            print('{} ,{}, {}, {}'.format(x, y, w, h))
+            aspect_ratio = w / float(h)
+            area = cv2.contourArea(c)
+            hull_area = cv2.contourArea(cv2.convexHull(c))
+            solidity = area / float(hull_area)
+            print('area = ', area)
+            if solidity > .95 and (aspect_ratio >= 0.8 and aspect_ratio <= 1.1):
+                # cv2.drawContours(img, [approx], -1, (0, 0, 255), 1)
+                res = approx.reshape(-1, 2)
+                mask_img = np.ones((img_height, img_width, 3), np.uint8) * 0 # Black canvas
+                thickness = 1
+                pts = approx
+                color_display = (255, 0, 0) 
+                x,y,w,h = cv2.boundingRect(c)
+                ROI = img[y:y+h, x:x+w]
+
+                # (tl, tr, br, bl) = rect
+                max_width = 1024
+                max_height = 1024
+                # sort by x, y 
+                ind = np.lexsort((res[:,1],res[:,0]))  
+                res2 = res[ind]
+
+                print(res)
+                print(res2)
+
+                pts1 = np.float32([res[0], res[2], res[1],res[3]])
+                pts1 = np.float32([res[0],res[3], res[1],res[2]])
+                pts2 = np.float32([[0, 0], [max_height, 0], [0, max_width], [max_height, max_width]])
+                M = cv2.getPerspectiveTransform(pts1, pts2)
+                dst = cv2.warpPerspective(img, M, (max_width, max_height))
+                ax3.imshow(dst, cmap=plt.cm.gray)
+
+                cv2.imwrite('/tmp/%s'%(name), dst)
+                showAndDestroy('Transformed', dst)
+    # showAndDestroy('masked', img)
     plt.show()

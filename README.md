@@ -50,3 +50,7 @@ https://lutzroeder.github.io/netron/
 ## Tensorboard / mxboard
 https://medium.com/apache-mxnet/mxboard-mxnet-data-visualization-2eed6ae31d2c
 https://gist.github.com/skirdey/8b9bd6cc20e958bc57e76004410f17ff
+
+
+## OpenCV findContours
+https://stackoverflow.com/questions/48291581/how-to-use-cv2-findcontours-in-different-opencv-versions

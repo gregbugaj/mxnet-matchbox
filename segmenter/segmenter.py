@@ -64,7 +64,6 @@ def _get_batch(batch, ctx, is_even_split=True):
                                                                                                  even_split=is_even_split), \
            features.shape[0]
 
-
 def evaluate_accuracy(data_iter, net, ctx):
     if isinstance(ctx, mx.Context):
         ctx = [ctx]
@@ -93,7 +92,7 @@ def train(train_iter, test_iter, net, loss, trainer, ctx, num_epochs, log_dir='.
     lr_steps = sorted([float(ls) for ls in args.lr_decay_epoch.split(',') if ls.strip()])
 
     log.warning("Checkpoints : %s" % (checkpoints_dir))
-    log.info("[lr_steps {}] ".format(lr_steps))
+    log.info("lr_steps : {}".format(lr_steps))
     # define a summary writer that logs data and flushes to the file every 5 seconds
     sw = SummaryWriter(logdir='./logs', flush_secs=5)
 
@@ -105,7 +104,7 @@ def train(train_iter, test_iter, net, loss, trainer, ctx, num_epochs, log_dir='.
     best_acc = 0.0
     global_step = 0
 
-    log.info('training on : {}', ctx)
+    log.info('training on : {}'.format(ctx))
 
     for epoch in range(num_epochs):
         while lr_steps and epoch >= lr_steps[0]:
@@ -114,7 +113,7 @@ def train(train_iter, test_iter, net, loss, trainer, ctx, num_epochs, log_dir='.
             trainer.set_learning_rate(new_lr)
             log.info("[Epoch {}] Set learning rate to {}".format(epoch, new_lr))
 
-        # print('epoch # : ', epoch)
+        print('epoch # : ', epoch)
         train_l_sum, train_acc_sum, n, m, start = 0.0, 0.0, 0, 0, time.time()
         btic = time.time()
         for i, batch in enumerate(train_iter):
@@ -268,15 +267,14 @@ def parse_args():
 
 
 if __name__ == '__main__':
-
-    seed = 42
-    random.seed = seed
-    np.random.seed = seed
-    mx.random.seed(seed)
+    # seed = 42
+    # random.seed = seed
+    # np.random.seed = seed
+    # mx.random.seed(seed)
 
     args = parse_args()
     print(args)
-    # args.gpu_id = '0'
+    args.gpu_id = '0'
 
     if args.gpu_id is None:
         ctx = [mx.cpu()]
@@ -289,8 +287,9 @@ if __name__ == '__main__':
         os.environ['MXNET_CUDA_VISIBLE_DEVICES'] = s
         os.environ['MXNET_CUDNN_AUTOTUNE_DEFAULT'] = '0'
 
+    # ctx = [mx.cpu()]
     # Hyperparameters
-    args.num_epochs = 1000
+    args.num_epochs = 500
     args.batch_size = 2
     args.num_classes = 2
     batch_size = args.batch_size

@@ -8,8 +8,13 @@ import mxnet as mx
 class SegDataset(gdata.Dataset):
     def __init__(self, root, transform = None, colormap = None, classes=None):
        features, labels = self.read_images(root)
-       self.rgb_mean = nd.array([0.448, 0.456, 0.406])
-       self.rgb_std = nd.array([0.229, 0.224, 0.225])
+       
+       # Calculated on our training set
+       self.rgb_mean = nd.array([0.94035348, 0.94035348, 0.94035348])
+       self.rgb_std = nd.array([0.16871583, 0.16871583, 0.16871583])
+    #    self.rgb_mean = nd.array([0.448, 0.456, 0.406])
+    #    self.rgb_std = nd.array([0.229, 0.224, 0.225])
+
        self.transform = transform
        self.features=[self.normalize_image(feature) for feature in features]
        self.labels=labels

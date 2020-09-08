@@ -1,3 +1,5 @@
+
+
 # UNET based segmenter
 
 https://www.linkedin.com/pulse/semantic-segmentation-tutorial-mxnetgluon-part-i-foivos-diakogiannis
@@ -36,3 +38,9 @@ https://medium.com/@pallawi.ds/understand-semantic-segmentation-with-the-fully-c
 Resnet Block
 Batchn Norm
 Dropout
+
+
+## Dependencies 
+```
+python -m pip install git+https://github.com/aleju/imgaug
+```
