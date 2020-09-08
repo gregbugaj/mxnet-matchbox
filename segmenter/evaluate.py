@@ -139,8 +139,11 @@ if __name__ == '__main__':
     for c in cnts:
         # approximate the contour
         peri = cv2.arcLength(c, True)
-        approx = cv2.approxPolyDP(c, 0.01 * peri, True)
+        approx = cv2.approxPolyDP(c, 0.02 * peri, True)
 
+        print(c)
+        print(approx)
+        
         if len(approx) == 4:
             # compute the bounding box of the approximated contour and use the bounding box to compute the aspect ratio
             (x, y, w, h) = cv2.boundingRect(approx)
