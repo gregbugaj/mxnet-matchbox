@@ -172,8 +172,9 @@ if __name__ == '__main__':
 
                 print(res)
                 print(res2)
-
-                pts1 = np.float32([res[0], res[2], res[1],res[3]])
+                # rearange point in in order to get correct perspective
+                # pts1 = np.float32([res[0], res[2], res[1],res[3]])
+                
                 pts1 = np.float32([res[0],res[3], res[1],res[2]])
                 pts2 = np.float32([[0, 0], [max_height, 0], [0, max_width], [max_height, max_width]])
                 M = cv2.getPerspectiveTransform(pts1, pts2)
