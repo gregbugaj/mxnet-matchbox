@@ -71,12 +71,7 @@ if __name__ == '__main__':
     net = UNet(channels=3, num_class=n_classes)
     net.load_parameters('./unet_best.params', ctx=ctx)
     # net.load_parameters('./checkpoints/epoch_0357_model.params', ctx=ctx)
-
-<<<<<<< HEAD
-    image_path = './data/test/image/25.png'
-=======
     image_path = './data/train/image/5.png'
->>>>>>> e94f877d6f85d7387341dab26f290d7ee37eca1a
     img = image.imread(image_path)
     normal = normalize_image(img)
 

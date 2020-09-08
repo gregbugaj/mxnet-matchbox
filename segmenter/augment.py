@@ -1,7 +1,7 @@
 import argparse
 import os
 import cv2
-
+import numpy as np
 
 def image_resize(image, width = None, height = None, inter = cv2.INTER_AREA):
     # initialize the dimensions of the image to be resized and
@@ -34,63 +34,73 @@ def image_resize(image, width = None, height = None, inter = cv2.INTER_AREA):
     # return the resized image
     return resized
 
-def process(dir_src, dir_dest):
-    dirs = os.listdir(dir_src)
-    dirs.sort()
-    print("Classes : {}".format(dirs))
+def directory_resize(dir_src, dir_dest):
+    print(dir_src)
+    print(dir_dest)
 
-    for clazz in dirs:
-        print(clazz)
-        clazz_dir = os.path.join(dir_src, clazz)
-        clazz_dir_dest = os.path.join(dir_dest, clazz)
+    filenames = os.listdir(dir_src)
+    filenames.sort()
+    if not os.path.exists(dir_dest):
+        os.makedirs(dir_dest)
+        
+    w = 1000
+    h = 1400 
+    pad = 100
 
-        filenames = os.listdir(clazz_dir)
-        filenames.sort()
-        size = len(filenames)
+    for filename in filenames:
+        try:
+            print (filename)
+            # open image file
+            path = os.path.join(dir_src, filename)
+            path_dest = os.path.join(dir_dest, filename) + ".png"
 
-        print(size)
-        print(filenames)
-        if not os.path.exists(clazz_dir_dest):
-         os.makedirs(clazz_dir_dest)
+            img = cv2.imread(path)     
+            img = image_resize(img, width=w)
+            img_h, img_w, img_c = img.shape
+            print(img.shape)
 
-        for filename in filenames:
-            try:
-                print (filename)
-                # open image file
-                path = os.path.join(clazz_dir, filename)
-                path_dest = os.path.join(clazz_dir_dest, filename) + ".png"
-                # img = cv2.imread(os.path.join(clazz_dir, filename), cv2.IMREAD_GRAYSCALE)            
-                w = 1024
-                h = 512
+            ## Merge two images
+            l_img = np.ones((h + pad, w + pad, 3), np.uint8) * 255
+            s_img = img # np.zeros((512, 512, 3), np.uint8)
+            x_offset = int((l_img.shape[1] - img.shape[1]) / 2) 
+            y_offset = int((l_img.shape[0] - img.shape[0]) / 2)  # Anchored to the upper left
+            l_img[y_offset:y_offset+s_img.shape[0], x_offset:x_offset+s_img.shape[1]] = s_img
+            img = l_img
+            cv2.imwrite(path_dest, img)
+        except Exception as e:
+            print(e)
 
-                img = cv2.imread(os.path.join(clazz_dir, filename))     
-                # img = transform(img)
-                # img = image_resize(img, height=h)
-                img = image_resize(img, width=w)
-                img_h, img_w, img_c = img.shape
-                print(img.shape)
 
-                ## Merge two images
-                l_img = np.ones((h, w, 3), np.uint8) * 255
-                s_img = img # np.zeros((512, 512, 3), np.uint8)
-                x_offset = int((l_img.shape[1] - img.shape[1]) / 2) 
-                y_offset = 0 # Anchored to the upper left
-                l_img[y_offset:y_offset+s_img.shape[0], x_offset:x_offset+s_img.shape[1]] = s_img
-                img = l_img
-                cv2.imwrite(path_dest, img)
-            finally:
-                print('Error')
-    
+def augment(dir_src, dir_dest):
+    import imgaug as ia
+    import imgaug.augmenters as iaa
+    print('Augmenting')
+
+    img = cv2.imread('/home/gbugaj/mxnet-training/hicfa/converted/HCFA-AllState/269687_202006290004962_001.tif.png')   
+    # images = np.zeros((2, 512, 512, 3), dtype=np.uint8)  # two example images
+    # images[:, 64, 64, :] = 255
+    images=[img]
+
+    image = np.zeros((64, 64, 3), dtype=np.uint8)
+
+    # polygons
+    psoi = ia.PolygonsOnImage([
+        ia.Polygon([(10.5, 20.5), (50.5, 30.5), (10.5, 50.5)])
+    ], shape=image.shape)
+    image_with_polys = psoi.draw_on_image(
+        image, alpha_points=0, alpha_face=0.5, color_lines=(255, 0, 0))
+    ia.imshow(image_with_polys)
+
 
 def parse_args():
     """Parse arguments."""
     parser = argparse.ArgumentParser(description='Image preprocessor')
 
     parser.add_argument('--data-src', dest='data_dir_src', 
-                        help='data directory to use', default=os.path.join(os.getcwd(), 'data', 'images'), type=str)
+                        help='data directory to use', default='./data/images', type=str)
 
     parser.add_argument('--data-dest', dest='data_dir_dest', 
-                        help='data directory to output images to', default=os.path.join(os.getcwd(), 'data', 'out'), type=str)
+                        help='data directory to output images to', default='./data/out', type=str)
 
     args = parser.parse_args()
     return args
@@ -98,10 +108,10 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
 
-    data_root_dir = "/home/gbugaj/mxnet-training/hicfa/raw/HCFA-AllState"
-    data_out_dir = "/home/gbugaj/mxnet-training/hicfa/converted/HCFA-AllState"
+    args.data_dir_src = "/home/gbugaj/mxnet-training/hicfa/raw/HCFA-AllState"
+    args.data_dir_dest = "/home/gbugaj/mxnet-training/hicfa/converted/HCFA-AllState"
 
     print(args.data_dir_src)
     print(args.data_dir_dest)
-    
-    process(args.data_dir_src, args.data_dir_dest)
+    augment(args.data_dir_src, args.data_dir_dest)
+    # directory_resize(args.data_dir_src, args.data_dir_dest)
