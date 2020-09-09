@@ -4,29 +4,25 @@ import cv2
 import numpy as np
 from mxnet import  nd
 
-
 def image_resize(image, width = None, height = None, inter = cv2.INTER_AREA):
     # initialize the dimensions of the image to be resized and
     # grab the image size
     dim = None
     (h, w) = image.shape[:2]
 
-    # if both the width and height are None, then return the
-    # original image
+    # if both the width and height are None, then return the original image
     if width is None and height is None:
         return image
 
     # check to see if the width is None
     if width is None:
-        # calculate the ratio of the height and construct the
-        # dimensions
+        # calculate the ratio of the height and construct the dimensions
         r = height / float(h)
         dim = (int(w * r), height)
 
     # otherwise, the height is None
     else:
-        # calculate the ratio of the width and construct the
-        # dimensions
+        # calculate the ratio of the width and construct the dimensions
         r = width / float(w)
         dim = (width, int(h * r))
 
@@ -36,7 +32,7 @@ def image_resize(image, width = None, height = None, inter = cv2.INTER_AREA):
     # return the resized image
     return resized
 
-def resize_and_frame(image, width = None, height = None, color = 255):
+def resize_and_frame(image, width, height, color = 255):
     ## Merge two images
     img = image_resize(image, height=height)
     l_img = np.ones((height, height, 3), np.uint8) * color
@@ -46,6 +42,42 @@ def resize_and_frame(image, width = None, height = None, color = 255):
     l_img[y_offset:y_offset+s_img.shape[0], x_offset:x_offset+s_img.shape[1]] = s_img
 
     return l_img
+
+def directory_resize_1024(dir_src, dir_dest):
+    print(dir_src)
+    print(dir_dest)
+
+    filenames = os.listdir(dir_src)
+    filenames.sort()
+    if not os.path.exists(dir_dest):
+        os.makedirs(dir_dest)
+        
+    w = 1024
+    h = 1024 
+    pad = 0
+
+    for filename in filenames:
+        try:
+            print (filename)
+            # open image file
+            path = os.path.join(dir_src, filename)
+            path_dest = os.path.join(dir_dest, filename) #+ ".png"
+
+            img = cv2.imread(path)     
+            img = image_resize(img, height=w)
+            img_h, img_w, img_c = img.shape
+            print(img.shape)
+
+            ## Merge two images
+            l_img = np.ones((h + pad, w + pad, 3), np.uint8) * 255
+            s_img = img # np.zeros((512, 512, 3), np.uint8)
+            x_offset = int((l_img.shape[1] - img.shape[1]) / 2) 
+            y_offset = int((l_img.shape[0] - img.shape[0]) / 2)  # Anchored to the upper left
+            l_img[y_offset:y_offset+s_img.shape[0], x_offset:x_offset+s_img.shape[1]] = s_img
+            img = l_img
+            cv2.imwrite(path_dest, img)
+        except Exception as e:
+            print(e)
 
 
 def directory_resize(dir_src, dir_dest):
@@ -77,7 +109,7 @@ def directory_resize(dir_src, dir_dest):
             l_img = np.ones((h + pad, w + pad, 3), np.uint8) * 255
             s_img = img # np.zeros((512, 512, 3), np.uint8)
             x_offset = int((l_img.shape[1] - img.shape[1]) / 2) 
-            y_offset = int((l_img.shape[0] - img.shape[0]) / 2)  # Anchored to the upper left
+            y_offset = int((l_img.shape[0] - img.shape[0]) / 2)
             l_img[y_offset:y_offset+s_img.shape[0], x_offset:x_offset+s_img.shape[1]] = s_img
             img = l_img
             cv2.imwrite(path_dest, img)
@@ -329,5 +361,10 @@ if __name__ == '__main__':
     data_dir_dest = '/home/greg/data-hipaa/forms/splitted'
     # split(data_dir_src, data_dir_dest)
 
-    mean_('/home/greg/data-hipaa/forms/splitted/train/image')
+    # mean_('/home/greg/data-hipaa/forms/splitted/train/image')
+
+
+    data_dir_src = '/home/gbugaj/mxnet-training/hicfa/raw/HCFA-AllState'
+    data_dir_dest = '/home/gbugaj/mxnet-training/hicfa/converted_1024'
+    directory_resize_1024(data_dir_src, data_dir_dest)
     
