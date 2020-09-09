@@ -12,6 +12,15 @@ class SegDataset(gdata.Dataset):
        # Calculated on our training set
        self.rgb_mean = nd.array([0.94035348, 0.94035348, 0.94035348])
        self.rgb_std = nd.array([0.16871583, 0.16871583, 0.16871583])
+
+       # second set
+       self.rgb_mean = nd.array([0.93610591, 0.93610591, 0.93610591])
+       self.rgb_std = nd.array([0.1319155, 0.1319155, 0.1319155])
+
+       # Calculated on our training set # 2
+    #    self.rgb_mean = nd.array([0.88039209, 0.88039209, 0.88039209])
+    #    self.rgb_std = nd.array([0.22965295, 0.22965295, 0.22965295])
+
     #    self.rgb_mean = nd.array([0.448, 0.456, 0.406])
     #    self.rgb_std = nd.array([0.229, 0.224, 0.225])
 

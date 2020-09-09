@@ -116,14 +116,9 @@ def directory_resize(dir_src, dir_dest):
         except Exception as e:
             print(e)
 
-
-def normalize_image(img):
-    rgb_mean = nd.array([0.448, 0.456, 0.406])
-    rgb_std = nd.array([0.229, 0.224, 0.225])
-    return (img.astype('float32') / 255.0 - rgb_mean) / rgb_std
-
 def mean_(dir_src):
-    print(dir_src)
+    """Calculate mean for all images in directory"""
+    print("Calculating Mean and StdDev")
 
     filenames = os.listdir(dir_src)
     stats = []
@@ -160,9 +155,7 @@ def augment(dir_src, dir_dest):
     # images = np.zeros((2, 512, 512, 3), dtype=np.uint8)  # two example images
     # images[:, 64, 64, :] = 255
     images=[img]
-
     image = np.zeros((64, 64, 3), dtype=np.uint8)
-
     # polygons
     psoi = ia.PolygonsOnImage([
         ia.Polygon([(10.5, 20.5), (50.5, 30.5), (10.5, 50.5)])
@@ -171,10 +164,56 @@ def augment(dir_src, dir_dest):
         image, alpha_points=0, alpha_face=0.5, color_lines=(255, 0, 0))
     ia.imshow(image_with_polys)
 
+
 def showAndDestroy(label, image):
     cv2.imshow(label, image)
     cv2.waitKey(0)           
     cv2.destroyAllWindows() 
+
+def augment_image(img, mask, pts, count):
+    """Augment imag and mask"""
+    import imgaug as ia
+    import imgaug.augmenters as iaa
+    sometimes = lambda aug: iaa.Sometimes(0.5, aug)
+
+    seq_shared = iaa.Sequential([
+        # sometimes(iaa.Affine(
+        #     scale={"x": (0.8, 1.0), "y": (0.8, 1.0)},
+        #     # shear=(-6, 6),
+        #     cval=(0, 0), # Black
+        # ))
+    ])
+
+    seq = iaa.Sequential([
+        iaa.SaltAndPepper(0.03, per_channel=False),
+        # Blur each image with varying strength using
+        # gaussian blur (sigma between 0 and 3.0),
+        # average/uniform blur (kernel size between 2x2 and 7x7)
+        # median blur (kernel size between 1x1 and 5x5).
+       iaa.OneOf([
+            iaa.GaussianBlur((0, 2.0)),
+            iaa.AverageBlur(k=(2, 7)),
+            iaa.MedianBlur(k=(1, 3)),
+        ]),
+        
+    ], random_order=True)
+
+    masks = []
+    images = [] 
+    for i in range(count):
+        seq_shared_det = seq_shared.to_deterministic()
+        image_aug = seq(image = img)
+        image_aug = seq_shared_det(image = image_aug)
+        mask_aug = seq_shared_det(image = mask)
+
+        masks.append(mask_aug)
+        images.append(image_aug)
+        # cv2.imwrite('/tmp/imgaug/%s.png' %(i), image_aug)
+        # cv2.imwrite('/tmp/imgaug/%s_mask.png' %(i), mask_aug)
+    return images, masks
+
+    # image_aug = seq(image = img)
+    # showAndDestroy('aug', image_aug)
 
 
 def ensure_exists(dir):
@@ -213,6 +252,11 @@ def create_mask(dir_src, dir_dest, cvat_annotation_file):
     print('Total annotations : %s '% (len(data['ds'])))
     print('Total files : %s '% (len(filenames)))
 
+    target_height = 512
+
+    ensure_exists(os.path.join(dir_dest, 'image'))
+    ensure_exists(os.path.join(dir_dest, 'mask'))
+    
     for row in data['ds']:
         print(row)
         filename = row['name']
@@ -234,26 +278,26 @@ def create_mask(dir_src, dir_dest, cvat_annotation_file):
             # image = cv2.polylines(img, [pts],  isClosed, color_display, thickness) 
             mask_img = cv2.polylines(mask_img, [pts],  isClosed, (255, 255, 255), thickness) 
             mask_img = cv2.fillPoly(mask_img, [pts], (255, 255, 255) ) # white mask
+            # Apply transformations to the image
+            aug_images, aug_masks = augment_image(img, mask_img, pts, 5)
+            # Add originals
+            aug_images.append(img)
+            aug_masks.append(mask_img)
+            index = 0
+            for a_i, a_m in zip(aug_images, aug_masks):
+                img = a_i
+                mask_img = a_m
+                fname = "{}.{}.png".format(filename, index)
+                # # resize both src and dest
+                img_resized = resize_and_frame(img, height=target_height ,width = None, color = 255)
+                mask_resized = resize_and_frame(mask_img, height=target_height ,width = None, color = 0)
 
-            # showAndDestroy('base image', image)
-            # showAndDestroy('mask', mask_img)
+                path_resized_dest = os.path.join(dir_dest, 'image',  fname)
+                path_mask_resized_dest = os.path.join(dir_dest, 'mask', fname)
 
-            # resize both src and dest into 512 
-            h = 1024 
-            # img_resized = image_resize(img, height=h)
-            # mask_resized = image_resize(mask_img, height=h)
-            img_resized = resize_and_frame(img, height=h, width=h, color = 255)
-            mask_resized = resize_and_frame(mask_img, height=h, width=h, color = 0)
- 
-            path_resized_dest = os.path.join(dir_dest, 'image',  filename)
-            path_mask_resized_dest = os.path.join(dir_dest, 'mask', filename)
-
-            ensure_exists(os.path.join(dir_dest, 'image'))
-            ensure_exists(os.path.join(dir_dest, 'mask'))
-
-            print(path_resized_dest)
-            cv2.imwrite(path_resized_dest, img_resized)
-            cv2.imwrite(path_mask_resized_dest, mask_resized)
+                cv2.imwrite(path_resized_dest, img_resized)
+                cv2.imwrite(path_mask_resized_dest, mask_resized)
+                index = index + 1
             # break
 
 
@@ -359,12 +403,31 @@ if __name__ == '__main__':
 
     data_dir_src = '/home/greg/data-hipaa/forms/converted/resized'
     data_dir_dest = '/home/greg/data-hipaa/forms/splitted'
-    # split(data_dir_src, data_dir_dest)
 
-    # mean_('/home/greg/data-hipaa/forms/splitted/train/image')
+    split(data_dir_src, data_dir_dest)
 
+    # mean_('/home/greg/data-hipaa/forms/converted/resized/image')
 
     data_dir_src = '/home/gbugaj/mxnet-training/hicfa/raw/HCFA-AllState'
     data_dir_dest = '/home/gbugaj/mxnet-training/hicfa/converted_1024'
-    directory_resize_1024(data_dir_src, data_dir_dest)
+    # directory_resize_1024(data_dir_src, data_dir_dest)
     
+# Class >>  size = 3948 training = 2763 validation = 395 test = 790 
+# Number of training images   : 2763
+# Number of validation images : 395
+# Number of testing images    : 790
+
+# (mxnet-1.7) greg@xpredator:~/dev/mxnet-matchbox/segmenter$ python ./evaluate.py 
+# Evaluating
+# ratio >> 0.14733812949640288
+# out >> (512, 512, 3)
+# img >> (512, 512, 3)
+# Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
+# Eval time 0.182 sec
+# (mxnet-1.7) greg@xpredator:~/dev/mxnet-matchbox/segmenter$ python ./evaluate.py 
+# Evaluating
+# ratio >> 0.14733812949640288
+# out >> (512, 512, 3)
+# img >> (512, 512, 3)
+# Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
+# Eval time 0.167 sec

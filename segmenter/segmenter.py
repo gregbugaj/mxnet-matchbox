@@ -117,7 +117,7 @@ def train(train_iter, test_iter, net, loss, trainer, ctx, num_epochs, log_dir='.
         train_l_sum, train_acc_sum, n, m, start = 0.0, 0.0, 0, 0, time.time()
         btic = time.time()
         for i, batch in enumerate(train_iter):
-            # print("Batch Index : %d" % (i))
+            print("Batch Index : %d" % (i))
             xs, ys, batch_size = _get_batch(batch, ctx)
             ls = []
             with autograd.record():
@@ -290,7 +290,7 @@ if __name__ == '__main__':
     # ctx = [mx.cpu()]
     # Hyperparameters
     args.num_epochs = 500
-    args.batch_size = 2
+    args.batch_size = 8
     args.num_classes = 2
     batch_size = args.batch_size
     num_workers = 8

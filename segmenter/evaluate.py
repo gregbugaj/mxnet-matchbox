@@ -10,23 +10,20 @@ import matplotlib.pyplot as plt
 
 from mxnet.gluon import loss as gloss, data as gdata, utils as gutils
 import sys
+import time
 import numpy
 # numpy.set_printoptions(threshold=sys.maxsize)
 
-def normalize_image_global(img):
-    rgb_mean = nd.array([0.448, 0.456, 0.406])
-    rgb_std = nd.array([0.229, 0.224, 0.225])
-    return (img.astype('float32') / 255.0 - rgb_mean) / rgb_std
-
 def normalize_image(img):
+    """normalize image for bitonal processing"""
     rgb_mean = nd.array([0.94040672, 0.94040672, 0.94040672])
     rgb_std = nd.array([0.14480773, 0.14480773, 0.14480773])
-    return (img.astype('float32') / 255.0 - rgb_mean) / rgb_std
+    
+    # second augmented set
+    rgb_mean = nd.array([0.93610591, 0.93610591, 0.93610591])
+    rgb_std = nd.array([0.1319155, 0.1319155, 0.1319155])
 
-def load_image(img, width, height):
-    data = np.transpose(img, (2, 0, 1))
-    # Expand shape into (B x H x W x c)
-    return mx.nd.expand_dims(data, axis=0)
+    return (img.astype('float32') / 255.0 - rgb_mean) / rgb_std
 
 def post_process_mask(label, img_cols, img_rows, n_classes, p=0.5):
     return (np.where(label.asnumpy().reshape(img_cols, img_rows) > p, 1, 0)).astype('uint8')
@@ -52,10 +49,6 @@ def image_resize(image, width = None, height = None, inter = cv2.INTER_AREA):
     dim = None
     (h, w) = image.shape[:2]
 
-    print('image : {}'.format(image.shape))
-    print('h = : {}'.format(h))
-    print('w = : {}'.format(w))
-
     # if both the width and height are None, then return the original image
     if width is None and height is None:
         return image
@@ -71,10 +64,6 @@ def image_resize(image, width = None, height = None, inter = cv2.INTER_AREA):
         # calculate the ratio of the width and construct the dimensions
         r = width / float(w)
         dim = (width, int(h * r))
-
-    print('Dim = {}'.format(dim))
-    print('Rat = {}'.format(r))
-
     # resize the image
     resized = cv2.resize(image, dim, interpolation = inter)
     # return the resized image
@@ -95,40 +84,25 @@ if __name__ == '__main__':
     print('Evaluating')
 
     n_classes = 2
-    img_width = 1024
-    img_height = 1024
+    n_channels = 3
+    img_width = 512
+    img_height = 512
     ctx = [mx.cpu()]
 
-    net = UNet(channels=3, num_class=n_classes)
+    net = UNet(channels = n_channels, num_class = n_classes)
     net.load_parameters('./unet_best.params', ctx=ctx)
-    # net.load_parameters('./unet-40-0.998728.params', ctx=ctx)
-    # net.load_parameters('./checkpoints/epoch_0357_model.params', ctx=ctx)
-    image_path = './data/validation/image/270205_202006300008659_001.tif.png' # Incorrect aspect ratio
-    # image_path = './data/validation/image/269936_202006290009913_001.tif.png' # Incorrect aspect ratio
-    image_path = './data/validation/image/270171_202006300007751_001.tif.png'
-    image_path = '/home/gbugaj/mxnet-training/hicfa/converted_1024/269687_202006290004962_001.tif'
-    image_path = '/home/gbugaj/mxnet-training/hicfa/converted_1024/270051_202006300005222_001.tif' # LIGHT need more samples
-    image_path = '/home/gbugaj/mxnet-training/hicfa/converted_1024/270104_202006300006030_001.tif' # Warped
-    # image_path = '/home/gbugaj/mxnet-training/hicfa/converted_1024/270145_202006300007283_001.tif' # Warped
-    # image_path = '/home/gbugaj/mxnet-training/hicfa/converted_1024/270170_202006300007744_001.tif'
-    # image_path = '/home/gbugaj/mxnet-training/hicfa/converted_1024/270477_202007020006060_001.tif'# need more samples
-    image_path = '/home/gbugaj/mxnet-training/hicfa/converted_1024/270646_202007020008437_001.tif'
-
-    image_path = '/home/gbugaj/mxnet-training/hicfa/raw/HCFA-AllState/270572_202007020007522_001.tif'
-    # image_path = '/home/gbugaj/mxnet-training/hicfa/raw/HCFA-AllState/270103_202006300006029_001.tif'
+    image_path = '/home/greg/data-hipaa/forms/hcfa-allstate/270664_202007020008540_001.tif'
     
-    img_ = cv2.imread(image_path) 
-    ratio, resized_img = resize_and_frame(img_, height=1024)
-    print('ratio >> {}'.format(ratio))
-    print('out >> {}'.format(resized_img.shape))
-    name = image_path.split('/')[-1]
-    # img = image.imread(image_path)
+    img_cv = cv2.imread(image_path) 
+    ratio, resized_img = resize_and_frame(img_cv, height=512)
     img = mx.nd.array(resized_img)
-    # img = image.imread(image_path)
     normal = normalize_image(img)
-    (img_height, img_width, _) = img.shape
+    name = image_path.split('/')[-1]
 
+    print('ratio >> {}'.format(ratio))
+    print('out >> {}'.format(resized_img.shape))    
     print('img >> {}'.format(img.shape))
+
     fig = plt.figure(figsize=(16, 16))
     ax1 = fig.add_subplot(221)
     ax2 = fig.add_subplot(222)
@@ -138,31 +112,34 @@ if __name__ == '__main__':
     ax1.imshow(resized_img, cmap=plt.cm.gray)
     ax2.imshow(normal.asnumpy(), cmap=plt.cm.gray)
 
-    # plt.show()
-    # raise ValueError('done')
     # Transform into required BxCxHxW shape
     data = np.transpose(normal, (2, 0, 1))
     # Exand shape into (B x H x W x c)
     data = data.astype('float32')
     data = mx.ndarray.expand_dims(data, axis=0)
-
+    # prediction
     out = net(data)
     pred = mx.nd.argmax(out, axis=1)
+
     mask = post_process_mask(pred, img_width, img_height, 2, p=0.5)
-    rescaled_height = int(1024 / ratio)
-    ratio, rescaled_mask = image_resize(mask, height=rescaled_height)
-    ax4.imshow(rescaled_mask, cmap=plt.cm.gray)
-   
-    # plt.show()
+    rescaled_height = int(512 / ratio)
+    ratio, rescaled_mask = image_resize(mask, height=rescaled_height)  
     mask = rescaled_mask
+    ax4.imshow(mask, cmap=plt.cm.gray)
     # Extract ROI
-    img = img_ #cv2.imread(image_path) 
     (cnts, _) = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
+    # Expected size of the new image
+    height = 3500 
+    width = 2500
+    cols = width + 1
+    rows = height + 1
+
+    start = time.time()
     for c in cnts:
         # approximate the contour
         peri = cv2.arcLength(c, True)
-        approx = cv2.approxPolyDP(c, 0.02 * peri, True)
+        approx = cv2.approxPolyDP(c, 0.01 * peri, True)
         if len(approx) == 4:
             # compute the bounding box of the approximated contour and use the bounding box to compute the aspect ratio
             (x, y, w, h) = cv2.boundingRect(approx)
@@ -170,40 +147,24 @@ if __name__ == '__main__':
             area = cv2.contourArea(c)
             hull_area = cv2.contourArea(cv2.convexHull(c))
             solidity = area / float(hull_area)
-
-            print(aspect_ratio)
-            if area > 10000 and solidity > .95 and (aspect_ratio >= 0.8 and aspect_ratio <= 1.4):
-                print('{} ,{}, {}, {}'.format(x, y, w, h))
+            if area > 50000 and solidity > .95 and (aspect_ratio >= 0.8 and aspect_ratio <= 1.4):
                 # cv2.drawContours(img, [approx], -1, (0, 0, 255), 1)
+                # Keypoint order : (top-left, top-right, bottom-right, bottom-left)                
+                # Rearange points in in order to get correct perspective change
                 res = approx.reshape(-1, 2)
-                mask_img = np.ones((img_height, img_width, 3), np.uint8) * 0 # Black canvas
-                thickness = 1
-
-                pts = approx
-                color_display = (255, 0, 0) 
                 x,y,w,h = cv2.boundingRect(c)
-               # Expected size
-                height = 3500 
-                width = 2500
-                # (top-left, top-right, bottom-right, bottom-left)                
-                # rearange points in in order to get correct perspective change based on bounding box of contours
                 _, top_left = find_best_point([y, x], res)
                 _, top_right = find_best_point([y, x + w], res)
                 _, bottom_right = find_best_point([y+h, x + w], res)
                 _, bottom_left = find_best_point([y+h, x], res)
-                #  Keypoint location on source image
                 src_pts = np.float32([top_left, top_right, bottom_right, bottom_left])
-                # Desired keypoint location after straigting
                 dst_pts = np.float32([[0, 0], [0, height], [width, height], [width, 0]])
-                
-                showAndDestroy('Transformed', img)
                 M = cv2.getPerspectiveTransform(src_pts, dst_pts)
-                cols = width + 1
-                rows = height + 1
-                dst = cv2.warpPerspective(img, M, (cols, rows), flags=cv2.INTER_LINEAR)
-
+                dst = cv2.warpPerspective(img_cv, M, (cols, rows), flags = cv2.INTER_LINEAR)
                 ax3.imshow(dst, cmap=plt.cm.gray)
-                cv2.imwrite('/tmp/%s'%(name), dst)
-                
-    # showAndDestroy('masked', img)
+                # cv2.imwrite('/tmp/%s'%(name), dst)
+                # showAndDestroy('Extracted Form', dst)
+
+    dt = time.time() - start
+    print('Eval time %.3f sec' % (dt))
     plt.show()
