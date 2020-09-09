@@ -12,21 +12,25 @@ from mxnet.gluon import loss as gloss, data as gdata, utils as gutils
 import sys
 import time
 import numpy
+import argparse
+
 # numpy.set_printoptions(threshold=sys.maxsize)
 
 def normalize_image(img):
     """normalize image for bitonal processing"""
-    rgb_mean = nd.array([0.94040672, 0.94040672, 0.94040672])
-    rgb_std = nd.array([0.14480773, 0.14480773, 0.14480773])
-    
+    # rgb_mean = nd.array([0.94040672, 0.94040672, 0.94040672])
+    # rgb_std = nd.array([0.14480773, 0.14480773, 0.14480773])
     # second augmented set
     rgb_mean = nd.array([0.93610591, 0.93610591, 0.93610591])
     rgb_std = nd.array([0.1319155, 0.1319155, 0.1319155])
-
     return (img.astype('float32') / 255.0 - rgb_mean) / rgb_std
 
-def post_process_mask(label, img_cols, img_rows, n_classes, p=0.5):
-    return (np.where(label.asnumpy().reshape(img_cols, img_rows) > p, 1, 0)).astype('uint8')
+def post_process_mask(pred, img_cols, img_rows, n_classes, p=0.5):
+    """ 
+    pred is of type mxnet.ndarray.ndarray.NDArray
+    so we are converting it into numpy
+    """
+    return (np.where(pred.asnumpy().reshape(img_cols, img_rows) > p, 1, 0)).astype('uint8')
 
 def showAndDestroy(label, image):
     cv2.imshow(label, image)
@@ -80,62 +84,80 @@ def resize_and_frame(image, width = None, height = None, color = 255):
 
     return ratio, l_img
 
-if __name__ == '__main__':
-    print('Evaluating')
+def recognize(network_parameters, image_path, form_shape, ctx, debug):
+    """Recognize form
 
+    *network_parameters* is a filename for trained network parameters,
+    *image_path* is an filename to the image path we want to evaluate.
+    *form_shape* is the shape that the output form will be translated into
+    *ctx* is the mxnet context we evaluating on
+    *debug* this flag idicates if we are goig to show debug information
+
+    Algorithm :
+        Setup recogintion network(Modified UNET)
+        Prepare images
+        Run prediction on the network
+        Reshape predition onto target image
+
+    Return an tupple of src, mask, segment
+    """
+
+    if isinstance(ctx, mx.Context):
+        ctx = [ctx]
+    start = time.time()
+
+    # At one point this can be generalized but right now I don't see this changing 
     n_classes = 2
     n_channels = 3
     img_width = 512
     img_height = 512
-    ctx = [mx.cpu()]
 
+    # Setup network
     net = UNet(channels = n_channels, num_class = n_classes)
-    net.load_parameters('./unet_best.params', ctx=ctx)
-    image_path = '/home/greg/data-hipaa/forms/hcfa-allstate/270664_202007020008540_001.tif'
+    net.load_parameters(network_parameters, ctx=ctx)
     
-    img_cv = cv2.imread(image_path) 
-    ratio, resized_img = resize_and_frame(img_cv, height=512)
+    # Srepare images
+    src = cv2.imread(image_path) 
+    ratio, resized_img = resize_and_frame(src, height=512)
     img = mx.nd.array(resized_img)
     normal = normalize_image(img)
     name = image_path.split('/')[-1]
 
-    print('ratio >> {}'.format(ratio))
-    print('out >> {}'.format(resized_img.shape))    
-    print('img >> {}'.format(img.shape))
+    if debug:
+        fig = plt.figure(figsize=(16, 16))
+        ax1 = fig.add_subplot(221)
+        ax2 = fig.add_subplot(222)
+        ax3 = fig.add_subplot(223)
+        ax4 = fig.add_subplot(224)
 
-    fig = plt.figure(figsize=(16, 16))
-    ax1 = fig.add_subplot(221)
-    ax2 = fig.add_subplot(222)
-    ax3 = fig.add_subplot(223)
-    ax4 = fig.add_subplot(224)
-
-    ax1.imshow(resized_img, cmap=plt.cm.gray)
-    ax2.imshow(normal.asnumpy(), cmap=plt.cm.gray)
+        ax1.imshow(resized_img, cmap=plt.cm.gray)
+        ax2.imshow(normal.asnumpy(), cmap=plt.cm.gray)
 
     # Transform into required BxCxHxW shape
     data = np.transpose(normal, (2, 0, 1))
     # Exand shape into (B x H x W x c)
     data = data.astype('float32')
     data = mx.ndarray.expand_dims(data, axis=0)
-    # prediction
+    # prediction 
     out = net(data)
     pred = mx.nd.argmax(out, axis=1)
+    nd.waitall() # Wait for all operations to finish as they are running asynchronously
+    mask = post_process_mask(pred, img_width, img_height, n_classes, p=0.5)
 
-    mask = post_process_mask(pred, img_width, img_height, 2, p=0.5)
-    rescaled_height = int(512 / ratio)
+    rescaled_height = int(img_height / ratio)
     ratio, rescaled_mask = image_resize(mask, height=rescaled_height)  
     mask = rescaled_mask
-    ax4.imshow(mask, cmap=plt.cm.gray)
+    if debug:
+        ax4.imshow(mask, cmap=plt.cm.gray) 
     # Extract ROI
     (cnts, _) = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
     # Expected size of the new image
-    height = 3500 
-    width = 2500
+    height = form_shape[0] 
+    width = form_shape[1]
     cols = width + 1
     rows = height + 1
+    segment = None
 
-    start = time.time()
     for c in cnts:
         # approximate the contour
         peri = cv2.arcLength(c, True)
@@ -160,11 +182,40 @@ if __name__ == '__main__':
                 src_pts = np.float32([top_left, top_right, bottom_right, bottom_left])
                 dst_pts = np.float32([[0, 0], [0, height], [width, height], [width, 0]])
                 M = cv2.getPerspectiveTransform(src_pts, dst_pts)
-                dst = cv2.warpPerspective(img_cv, M, (cols, rows), flags = cv2.INTER_LINEAR)
-                ax3.imshow(dst, cmap=plt.cm.gray)
-                # cv2.imwrite('/tmp/%s'%(name), dst)
-                # showAndDestroy('Extracted Form', dst)
+                segment = cv2.warpPerspective(src, M, (cols, rows), flags = cv2.INTER_LINEAR)
+                
+                if debug:
+                    ax3.imshow(segment, cmap=plt.cm.gray)
+                    cv2.imwrite('/tmp/%s'%(name), segment)
+                    showAndDestroy('Extracted Segment', segment)
 
     dt = time.time() - start
     print('Eval time %.3f sec' % (dt))
-    plt.show()
+    if debug:
+        plt.show()
+
+    return src, mask, segment
+
+def parse_args():
+    """Parse input arguments"""
+    parser = argparse.ArgumentParser(description='Segmenter evaluator')
+    parser.add_argument('--network-param', dest='network_param', help='Network parameter filename',default='data/input.png', type=str)
+    parser.add_argument('--image', dest='img_path', help='Image filename to evaluate', default='data/input.png', type=str)
+    parser.add_argument('--debug', dest='debug', help='Debug results', default=False, type=bool)
+
+    return parser.parse_args()
+
+
+if __name__ == '__main__':
+    args = parse_args()
+    args.network_param = './unet_best.params'
+    args.img_path = '/home/gbugaj/mxnet-training/hicfa/raw/HCFA-AllState/270166_202006300007734_001.tif'
+    args.debug = False
+
+    ctx = [mx.cpu()]
+    src, mask, segment = recognize(args.network_param, args.img_path, (3500, 2500), ctx, args.debug)
+    name = args.img_path.split('/')[-1]
+    cv2.imwrite('/tmp/debug/%s_src.png' % (name), src)
+    cv2.imwrite('/tmp/debug/%s_mask.png' % (name), mask)
+    cv2.imwrite('/tmp/debug/%s_segment.png' % (name), segment)
+
