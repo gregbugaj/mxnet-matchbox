@@ -38,6 +38,7 @@ https://medium.com/@pallawi.ds/understand-semantic-segmentation-with-the-fully-c
 Resnet Block
 Batchn Norm
 Dropout
+Conv2DTranspose  - https://github.com/keras-team/keras/issues/7307
 
 
 ## Dependencies 
