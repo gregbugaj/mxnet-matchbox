@@ -138,9 +138,9 @@ def train(train_iter, test_iter, net, loss, trainer, ctx, num_epochs, log_dir='.
         epoch_time = time.time() - start
         test_acc = evaluate_accuracy(test_iter, net, ctx)
 
-        print('epoch %d, loss %.4f, train acc %.3f, test acc %.3f, time %.3f sec'
+        print('epoch %d, loss %.5f, train acc %.5f, test acc %.5f, time %.5f sec'
               % (epoch + 1, train_l_sum / n, train_acc_sum / m, test_acc, epoch_time))
-        print('epoch %d, loss %.4f, train acc %.3f, test acc %.3f, time %.3f sec'
+        print('epoch %d, loss %.5f, train acc %.5f, test acc %.5f, time %.5f sec'
               % (epoch + 1, train_l_sum / n, train_acc_sum / m, test_acc, epoch_time))
 
         sw.add_scalar(tag='loss', value=(train_l_sum / n), global_step=epoch)
@@ -181,7 +181,7 @@ def train(train_iter, test_iter, net, loss, trainer, ctx, num_epochs, log_dir='.
 
             net.save_parameters('{:s}_best.params'.format(prefix, epoch, val_acc))
             with open(prefix + '_best.log', 'a') as f:
-                f.write('{:04d}:\t{:.4f}\n'.format(epoch, val_acc))
+                f.write('{:04d}:\t{:.6f}\n'.format(epoch, val_acc))
 
         # if epoch == 0:
         #     sw.add_graph(net)
@@ -196,9 +196,9 @@ def save_params(net, best_map, current_map, epoch, save_interval, prefix):
         best_map[0] = current_map
         net.save_parameters('{:s}_best.params'.format(prefix, epoch, current_map))
         with open(prefix + '_best_map.log', 'a') as f:
-            f.write('{:04d}:\t{:.4f}\n'.format(epoch, current_map))
+            f.write('{:06d}:\t{:.6f}\n'.format(epoch, current_map))
     if save_interval and epoch % save_interval == 0:
-        net.save_parameters('{:s}_{:04d}_{:.4f}.params'.format(prefix, epoch, current_map))
+        net.save_parameters('{:s}_{:04d}_{:.6f}.params'.format(prefix, epoch, current_map))
 
 
 def parse_args():
@@ -289,8 +289,8 @@ if __name__ == '__main__':
 
     # ctx = [mx.cpu()]
     # Hyperparameters
-    args.num_epochs = 500
-    args.batch_size = 8
+    args.num_epochs = 1000
+    args.batch_size = 4
     args.num_classes = 2
     batch_size = args.batch_size
     num_workers = 8

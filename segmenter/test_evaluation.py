@@ -10,17 +10,19 @@ import matplotlib.pyplot as plt
 
 from mxnet.gluon import loss as gloss, data as gdata, utils as gutils
 import sys
+import os
 import time
 import numpy
 import argparse
 
-from evaluate import recognize
+from evaluate import recognize, imwrite
 
 def parse_args():
     """Parse input arguments"""
     parser = argparse.ArgumentParser(description='Segmenter evaluator')
-    parser.add_argument('--network-param', dest='network_param', help='Network parameter filename',default='data/input.png', type=str)
-    parser.add_argument('--image', dest='img_path', help='Image filename to evaluate', default='data/input.png', type=str)
+    parser.add_argument('--network-param', dest='network_param', help='Network parameter filename',default='data/best.params', type=str)
+    parser.add_argument('--dir', dest='dir_src', help='Directory to evaluate', default='data/', type=str)
+    parser.add_argument('--output', dest='dir_out', help='Output directory evaluate', default='/tmp/debug', type=str)
     parser.add_argument('--debug', dest='debug', help='Debug results', default=False, type=bool)
 
     return parser.parse_args()
@@ -28,13 +30,31 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     args.network_param = './unet_best.params'
-    args.img_path = '/home/gbugaj/mxnet-training/hicfa/raw/HCFA-Bad-Images/2020043001127-1.TIF'
-    args.debug = True
-
+    args.dir_src = '/home/greg/data-hipaa/forms/hcfa-allstate'
+    args.dir_out = '/tmp/debug'
+    args.debug = False
     ctx = [mx.cpu()]
-    src, mask, segment = recognize(args.network_param, args.img_path, (3500, 2500), ctx, args.debug)
-    name = args.img_path.split('/')[-1]
-    cv2.imwrite('/tmp/debug/%s_src.png' % (name), src)
-    cv2.imwrite('/tmp/debug/%s_mask.png' % (name), mask)
-    cv2.imwrite('/tmp/debug/%s_segment.png' % (name), segment)
+    
+    dir_src = args.dir_src 
+    dir_out = args.dir_out 
+    network_param = args.network_param
+
+    filenames = os.listdir(dir_src)
+    if not os.path.exists(dir_out):
+        os.makedirs(dir_out)
+
+    for filename in filenames:
+        try:
+            img_path = os.path.join(dir_src, filename)
+            print (img_path)
+            src, mask, segment = recognize(network_param, img_path, (3500, 2500), ctx, False)
+            imwrite(os.path.join(dir_out, "%s_%s" % (filename, 'src.tif')), src)
+            imwrite(os.path.join(dir_out, "%s_%s" % (filename, 'mask.tif')), mask)
+            imwrite(os.path.join(dir_out, "%s_%s" % (filename, 'segment.tif')), segment)
+        except Exception as e:
+            print(e)
+        
+        # break
+
+
 

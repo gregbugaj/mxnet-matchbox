@@ -194,6 +194,7 @@ def recognize(network_parameters, image_path, form_shape, ctx, debug):
     if debug:
         plt.show()
 
+    mask = mask * 255 # currently mask is 0 / 1 
     return src, mask, segment
 
 def parse_args():
@@ -205,18 +206,24 @@ def parse_args():
 
     return parser.parse_args()
 
+def imwrite(path, img):
+    try:
+        cv2.imwrite(path, img)
+    except Exception as ident:
+        print(ident)
+
 
 if __name__ == '__main__':
     args = parse_args()
     args.network_param = './unet_best.params'
-    args.img_path = '/home/gbugaj/mxnet-training/hicfa/raw/HCFA-Bad-Images/2020043001127-1.TIF'
+    args.img_path = '/home/greg/data-hipaa/forms/hcfa-allstate/270589_202007020007796_001.tif'
     args.debug = True
 
     ctx = [mx.cpu()]
     src, mask, segment = recognize(args.network_param, args.img_path, (3500, 2500), ctx, args.debug)
     name = args.img_path.split('/')[-1]
-    cv2.imwrite('/tmp/debug/%s_src.png' % (name), src)
-    cv2.imwrite('/tmp/debug/%s_mask.png' % (name), mask)
-    if segment != None :
-        cv2.imwrite('/tmp/debug/%s_segment.png' % (name), segment)
+
+    imwrite('/tmp/debug/%s_src.tif' % (name), src)
+    imwrite('/tmp/debug/%s_mask.tif' % (name), mask )
+    imwrite('/tmp/debug/%s_segment.tif' % (name), segment)
 
