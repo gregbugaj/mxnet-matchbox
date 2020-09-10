@@ -216,7 +216,7 @@ def imwrite(path, img):
 if __name__ == '__main__':
     args = parse_args()
     args.network_param = './unet_best.params'
-    args.img_path = '/home/greg/data-hipaa/forms/hcfa-allstate/270589_202007020007796_001.tif'
+    args.img_path = '/home/gbugaj/mxnet-training/hicfa/raw/HCFA-AllState/269792_202006290007435_001.tif'
     args.debug = True
 
     ctx = [mx.cpu()]

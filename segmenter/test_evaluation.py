@@ -30,8 +30,9 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     args.network_param = './unet_best.params'
-    args.dir_src = '/home/greg/data-hipaa/forms/hcfa-allstate'
-    args.dir_out = '/tmp/debug'
+    args.dir_src = '/home/gbugaj/mxnet-training/hicfa/raw/HCFA-Bad-Images'
+    args.dir_src = '/home/gbugaj/mxnet-training/hicfa/raw/HCFA-AllState'
+    args.dir_out = '/tmp/debug-2'
     args.debug = False
     ctx = [mx.cpu()]
     
