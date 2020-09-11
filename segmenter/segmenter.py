@@ -294,7 +294,7 @@ if __name__ == '__main__':
     # ctx = [mx.cpu()]
     # Hyperparameters
     args.num_epochs = 500
-    args.batch_size = 4
+    args.batch_size = 2
     args.num_classes = 2
     batch_size = args.batch_size
     num_workers = 8

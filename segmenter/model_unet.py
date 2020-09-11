@@ -5,6 +5,9 @@
 # https://github.com/apache/incubator-mxnet/issues/7758
 # https://discuss.mxnet.io/t/using-upsampling-in-hybridblock/1946/2
 
+# ResBlock
+# https://medium.com/ai%C2%B3-theory-practice-business/resblock-a-trick-to-impove-the-model-8ba11891c52a
+
 from mxnet.gluon import nn, loss as gloss, data as gdata
 from mxnet import autograd, nd, init, image
 import numpy as np
