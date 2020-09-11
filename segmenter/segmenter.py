@@ -1,7 +1,6 @@
 import argparse
 import os
 import cv2
-import pandas as pd
 
 from mxnet.gluon import loss as gloss, data as gdata, utils as gutils
 import sys
@@ -299,11 +298,17 @@ if __name__ == '__main__':
     net.initialize(init=init.Xavier(magnitude=6), ctx=ctx)
     # https://mxnet.apache.org/versions/1.6/api/python/docs/tutorials/packages/gluon/blocks/hybridize.html
     # net.hybridize() # Causes errror with the SHAPE  
-    # net.initialize(ctx=ctx)
+    net.initialize(ctx=ctx)
     print(net)
-    # net.summary(nd.ones((5,1,512,512)))
+    net.summary(nd.ones((5,1,512,512)))
 
-    exit
+    # out = net(nd.ones((5,1,512,512)))
+    # file_name = "net"
+    # net.export(file_name)
+    # print('Network saved : %s' % (file_name))
+
+    sys.exit()
+     
     root_dir = os.path.join(args.data_dir)
     train_imgs = SegDataset(root='./data/train', colormap=COLORMAP, classes=CLASSES)
     test_imgs = SegDataset(root='./data/test', colormap=COLORMAP, classes=CLASSES)
