@@ -1,6 +1,10 @@
 # U-Net Model
 # Note: I modify the U-Net to get the ouput of the same shape as input
 
+# UpSampling2D info
+# https://github.com/apache/incubator-mxnet/issues/7758
+# https://discuss.mxnet.io/t/using-upsampling-in-hybridblock/1946/2
+
 from mxnet.gluon import nn, loss as gloss, data as gdata
 from mxnet import autograd, nd, init, image
 import numpy as np
@@ -15,41 +19,69 @@ class BaseConvBlock(nn.HybridBlock):
         # here, I use padding to get the output of the same shape as input
 
         self.conv1 = nn.Conv2D(channels, kernel_size=3, padding=1)
-        # self.bn1 = nn.BatchNorm()
+        self.bn1 = nn.BatchNorm()
         self.conv2 = nn.Conv2D(channels, kernel_size=3, padding=1)
-        # self.bn2 = nn.BatchNorm()
+        self.bn2 = nn.BatchNorm()
 
     def hybrid_forward(self, F, x, *args, **kwargs):
         # BatchNorm input will typically be unnormalized activations from the previous layer,
         # and the output will be the normalized activations ready for the next layer.
+        x = self.bn1(x)
+        x = self.conv1(x)
+        x = F.relu(x)        
 
-        x = F.relu(self.conv1(x))
-        # logging.info(x.shape)
-        return F.relu(self.conv2(x))    
+        x = self.bn2(x)    
+        x = self.conv2(x)
+        x = F.relu(x)    
+        return x
     
-    def hybrid_forward__(self, F, x, *args, **kwargs):
+    def hybrid_forwardXXX(self, F, x, *args, **kwargs):
         x = F.relu(self.conv1(x))
         # logging.info(x.shape)
         return F.relu(self.conv2(x))
 
+class UpsampleConvLayer(nn.HybridBlock):
+    """UpsampleConvLayer
+    Upsamples the input and then does a convolution. This method gives better results
+    compared to ConvTranspose2d.
+    ref: http://distill.pub/2016/deconv-checkerboard/
+    """
+
+    def __init__(self, channels, kernel_size, stride, factor = 2, **kwargs):
+        super(UpsampleConvLayer, self).__init__(**kwargs)
+        self.factor = factor
+        self.reflection_padding = int(np.floor(kernel_size / 2))
+        self.conv2d = nn.Conv2D(channels=channels, 
+                                kernel_size=kernel_size, strides=(stride,stride),
+                                padding=self.reflection_padding)
+
+    def hybrid_forward(self, F, x, *args, **kwargs):
+        # sample_type= nearest |  bilinear
+        x = F.UpSampling(x, scale=self.factor, sample_type='nearest')
+        out = self.conv2d(x)
+        return out
 
 class DownSampleBlock(nn.HybridBlock):
     def __init__(self, channels, **kwargs):
         super(DownSampleBlock, self).__init__(**kwargs)
         self.maxPool = nn.MaxPool2D(pool_size=2, strides=2)
         self.conv = BaseConvBlock(channels)
+        #self.drop1 = nn.Dropout(rate = .5)
 
     def hybrid_forward(self, F, x, *args, **kwargs):
         x = self.maxPool(x)
+        #x = self.drop1(x) # apply some network regularization
+        x = self.conv(x)
         # logging.info(x.shape)
-        return self.conv(x)
+        return x
 
 
 class UpSampleBlock(nn.HybridSequential):
     def __init__(self, channels, **kwargs):
         super(UpSampleBlock, self).__init__(**kwargs)
         self.channels = channels
-        self.up = nn.Conv2DTranspose(channels, kernel_size=4, padding=1, strides=2)
+        # self.up = nn.Conv2DTranspose(channels, kernel_size=4, padding=1, strides=2)
+        self.up = UpsampleConvLayer(channels, kernel_size=3, stride=1, factor=2)
         self.conv = BaseConvBlock(channels)
 
     def hybrid_forward(self, F, x1, *args, **kwargs):

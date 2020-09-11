@@ -116,7 +116,9 @@ def train(train_iter, test_iter, net, loss, trainer, ctx, num_epochs, log_dir='.
         train_l_sum, train_acc_sum, n, m, start = 0.0, 0.0, 0, 0, time.time()
         btic = time.time()
         for i, batch in enumerate(train_iter):
-            print("Batch Index : %d" % (i))
+            if i % 10 == 0:
+                print("Batch Index : %d" % (i))
+
             xs, ys, batch_size = _get_batch(batch, ctx)
             ls = []
             with autograd.record():
@@ -151,11 +153,14 @@ def train(train_iter, test_iter, net, loss, trainer, ctx, num_epochs, log_dir='.
         sw.add_scalar(tag='cost_curves', value=('time', epoch_time), global_step=epoch)
         sw.add_scalar(tag='cost_curves', value=('speed', speed), global_step=epoch)
 
-        grads = [i.grad() for i in net.collect_params().values()]
-        assert len(grads) == len(param_names)
-        # logging the gradients of parameters for checking convergence
-        for i, name in enumerate(param_names):
-            sw.add_histogram(tag=name, values=grads[i], global_step=epoch, bins=1000)
+        # Broken due to BatchNorm
+        if False:
+            # grads = [i.grad() for i in net.collect_params().values()]
+            grads = [i.grad() for i in net.collect_params().values() if i.grad_req != 'null'] # Cannot get gradient array for Parameter 'batchnorm0_running_mean' because grad_req='null'
+            assert len(grads) == len(param_names)
+            # logging the gradients of parameters for checking convergence
+            for i, name in enumerate(param_names):
+                sw.add_histogram(tag=name, values=grads[i], global_step=epoch, bins=1000)
 
         # Save all checkpoints
         # net.save_parameters(os.path.join(checkpoints_dir, 'epoch_%04d_model.params' % (epoch + 1)))
@@ -222,7 +227,7 @@ def parse_args():
 
     parser.add_argument('--lr-decay', type=float, default=0.1,
                         help='decay rate of learning rate. default is 0.1.')
-    parser.add_argument('--lr-decay-epoch', type=str, default='250, 500, 700, 850, 925',
+    parser.add_argument('--lr-decay-epoch', type=str, default='10, 20, 30, 40, 50',
                         help='epochs at which learning rate decays. default is 160,200.')
 
     parser.add_argument('--momentum',
@@ -286,9 +291,9 @@ if __name__ == '__main__':
         os.environ['MXNET_CUDA_VISIBLE_DEVICES'] = s
         os.environ['MXNET_CUDNN_AUTOTUNE_DEFAULT'] = '0'
 
-    ctx = [mx.cpu()]
+    # ctx = [mx.cpu()]
     # Hyperparameters
-    args.num_epochs = 1000
+    args.num_epochs = 500
     args.batch_size = 4
     args.num_classes = 2
     batch_size = args.batch_size
@@ -300,14 +305,14 @@ if __name__ == '__main__':
     # net.hybridize() # Causes errror with the SHAPE  
     net.initialize(ctx=ctx)
     print(net)
-    net.summary(nd.ones((5,1,512,512)))
+    # net.summary(nd.ones((5,1,512,512)))
 
     # out = net(nd.ones((5,1,512,512)))
     # file_name = "net"
     # net.export(file_name)
     # print('Network saved : %s' % (file_name))
 
-    sys.exit()
+    # sys.exit()
      
     root_dir = os.path.join(args.data_dir)
     train_imgs = SegDataset(root='./data/train', colormap=COLORMAP, classes=CLASSES)
@@ -325,8 +330,6 @@ if __name__ == '__main__':
     else:
         optimizer_params = {'learning_rate': args.learning_rate}
 
-
-
-    # trainer = gluon.Trainer(net.collect_params(), args.optimizer, optimizer_params)
-    # train(train_iter, test_iter, net, loss, trainer, ctx, num_epochs=args.num_epochs, log_dir=args.log_dir)
+    trainer = gluon.Trainer(net.collect_params(), args.optimizer, optimizer_params)
+    train(train_iter, test_iter, net, loss, trainer, ctx, num_epochs=args.num_epochs, log_dir=args.log_dir)
     print('Done')

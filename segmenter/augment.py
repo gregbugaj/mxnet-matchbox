@@ -306,9 +306,12 @@ def create_mask(dir_src, dir_dest, cvat_annotation_file):
             mask_img = cv2.fillPoly(mask_img, [pts], (255, 255, 255) ) # white mask
             # Apply transformations to the image
             aug_images, aug_masks = augment_image(img, mask_img, pts, 10)
+
+            assert len(aug_images) == len(aug_masks)
             # Add originals
             aug_images.append(img)
             aug_masks.append(mask_img)
+
             index = 0
             for a_i, a_m in zip(aug_images, aug_masks):
                 img = a_i
@@ -317,7 +320,7 @@ def create_mask(dir_src, dir_dest, cvat_annotation_file):
                 # # resize both src and dest
                 img_resized = resize_and_frame(img, height=target_height ,width = None, color = 255)
                 mask_resized = resize_and_frame(mask_img, height=target_height ,width = None, color = 0)
-
+                
                 path_resized_dest = os.path.join(dir_dest, 'image',  fname)
                 path_mask_resized_dest = os.path.join(dir_dest, 'mask', fname)
 
@@ -325,8 +328,6 @@ def create_mask(dir_src, dir_dest, cvat_annotation_file):
                 cv2.imwrite(path_resized_dest, img_resized)
                 cv2.imwrite(path_mask_resized_dest, mask_resized)
                 index = index + 1
-            break
-
 
 def split(dir_src, dir_dest):
     import random
@@ -345,8 +346,8 @@ def split(dir_src, dir_dest):
 
     size = len(mask_filenames)
 
-    validation_size = math.ceil(size * 0.1)  # 20 percent validation size
-    test_size = math.ceil(size * 0.20)  # 10 percent testing size
+    validation_size = math.ceil(size * 0.0)  # 20 percent validation size
+    test_size = math.ceil(size * 0.30)  # 10 percent testing size
     training_size = size - validation_size - test_size  # 70 percent training
     print("Class >>  size = {} training = {} validation = {} test = {} ".format(size, training_size, validation_size, test_size))
 
@@ -426,12 +427,12 @@ if __name__ == '__main__':
     data_dir_dest = '/home/greg/data-hipaa/forms/converted/resized'
     cvat_annotation_file ='/home/greg/dev/mxnet-matchbox/segmenter/data/annotations/task_hcfa-2020_09_04_21_12_31-cvat for images 1.1/annotations.xml'
 
-    create_mask(data_dir_src, data_dir_dest, cvat_annotation_file)
+    # create_mask(data_dir_src, data_dir_dest, cvat_annotation_file)
 
     data_dir_src = '/home/greg/data-hipaa/forms/converted/resized'
     data_dir_dest = '/home/greg/data-hipaa/forms/splitted'
 
-    # split(data_dir_src, data_dir_dest)
+    split(data_dir_src, data_dir_dest)
 
     # mean_('/home/greg/data-hipaa/forms/converted/resized/image')
 
