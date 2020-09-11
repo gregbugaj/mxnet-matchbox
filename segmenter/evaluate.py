@@ -169,6 +169,7 @@ def recognize(network_parameters, image_path, form_shape, ctx, debug):
             area = cv2.contourArea(c)
             hull_area = cv2.contourArea(cv2.convexHull(c))
             solidity = area / float(hull_area)
+
             if area > 50000 and solidity > .95 and (aspect_ratio >= 0.8 and aspect_ratio <= 1.4):
                 # cv2.drawContours(img, [approx], -1, (0, 0, 255), 1)
                 # Keypoint order : (top-left, top-right, bottom-right, bottom-left)                
@@ -217,6 +218,7 @@ if __name__ == '__main__':
     args = parse_args()
     args.network_param = './unet_best.params'
     args.img_path = '/home/gbugaj/mxnet-training/hicfa/raw/HCFA-AllState/269792_202006290007435_001.tif'
+    args.img_path = '/home/gbugaj/mxnet-training/hicfa/raw-2/244264_0031225652428_001.tif'
     args.debug = True
 
     ctx = [mx.cpu()]
