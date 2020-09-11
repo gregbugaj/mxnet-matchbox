@@ -33,9 +33,11 @@ if __name__ == '__main__':
     args.dir_src = '/home/greg/data-hipaa/forms/hcfa-allstate'
     args.dir_out = '/tmp/debug-3'
     
+    # /home/gbugaj/mxnet-training/hicfa/raw-2/
     # args.dir_src = '/home/gbugaj/mxnet-training/hicfa/raw/HCFA-Bad-Images'
-    # args.dir_src = '/home/gbugaj/mxnet-training/hicfa/raw/HCFA-AllState'
-    # args.dir_out = '/tmp/debug-2'
+    args.dir_src = '/home/gbugaj/mxnet-training/hicfa/raw/HCFA-AllState'
+    # args.dir_src = '/home/gbugaj/mxnet-training/hicfa/raw-2'
+    args.dir_out = '/tmp/debug-2'
 
     args.debug = False
     ctx = [mx.cpu()]
@@ -53,9 +55,9 @@ if __name__ == '__main__':
             img_path = os.path.join(dir_src, filename)
             print (img_path)
             src, mask, segment = recognize(network_param, img_path, (3500, 2500), ctx, False)
-            imwrite(os.path.join(dir_out, "%s_%s" % (filename, 'src.tif')), src)
-            imwrite(os.path.join(dir_out, "%s_%s" % (filename, 'mask.tif')), mask)
-            imwrite(os.path.join(dir_out, "%s_%s" % (filename, 'segment.tif')), segment)
+            # imwrite(os.path.join(dir_out, "%s_%s" % (filename, 'src.tif')), src)
+            imwrite(os.path.join(dir_out,'mask', "%s_%s" % (filename, 'mask.tif')), mask)
+            imwrite(os.path.join(dir_out, 'segment', "%s_%s" % (filename, 'segment.tif')), segment)
         except Exception as e:
             print(e)
         

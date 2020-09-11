@@ -29,19 +29,15 @@ class BaseConvBlock(nn.HybridBlock):
     def hybrid_forward(self, F, x, *args, **kwargs):
         # BatchNorm input will typically be unnormalized activations from the previous layer,
         # and the output will be the normalized activations ready for the next layer.
-        x = self.bn1(x)
         x = self.conv1(x)
-        x = F.relu(x)        
+        x = self.bn1(x)
+        x = F.relu(x)   # Activation
 
-        x = self.bn2(x)    
         x = self.conv2(x)
-        x = F.relu(x)    
+        x = self.bn2(x)    
+        x = F.relu(x)   # Activation 
+          
         return x
-    
-    def hybrid_forwardXXX(self, F, x, *args, **kwargs):
-        x = F.relu(self.conv1(x))
-        # logging.info(x.shape)
-        return F.relu(self.conv2(x))
 
 class UpsampleConvLayer(nn.HybridBlock):
     """UpsampleConvLayer
@@ -67,14 +63,12 @@ class UpsampleConvLayer(nn.HybridBlock):
 class DownSampleBlock(nn.HybridBlock):
     def __init__(self, channels, **kwargs):
         super(DownSampleBlock, self).__init__(**kwargs)
-        self.maxPool = nn.MaxPool2D(pool_size=2, strides=2)
         self.conv = BaseConvBlock(channels)
-        #self.drop1 = nn.Dropout(rate = .5)
+        self.maxPool = nn.MaxPool2D(pool_size=2, strides=2)
 
     def hybrid_forward(self, F, x, *args, **kwargs):
-        x = self.maxPool(x)
-        #x = self.drop1(x) # apply some network regularization
         x = self.conv(x)
+        x = self.maxPool(x)
         # logging.info(x.shape)
         return x
 
@@ -102,6 +96,7 @@ class UpSampleBlock(nn.HybridSequential):
                     pad_width=(0, 0, 0, 0,
                                diffY // 2, diffY - diffY // 2,
                                diffX // 2, diffX - diffX // 2))
+
         x = nd.concat(x1, x2, dim=1)
         # logging.info(x.shape)
         return self.conv(x)
