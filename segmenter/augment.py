@@ -171,31 +171,56 @@ def showAndDestroy(label, image):
     cv2.destroyAllWindows() 
 
 def augment_image(img, mask, pts, count):
+    import random
+    import string
     """Augment imag and mask"""
     import imgaug as ia
     import imgaug.augmenters as iaa
     sometimes = lambda aug: iaa.Sometimes(0.5, aug)
 
+    def get_random_string(length):
+        letters = string.ascii_lowercase
+        result_str = ''.join(random.choice(letters) for i in range(length))
+        return result_str
+        
+    # add some text to emulate text writing on document
+    x1 = pts[0][0][0]
+    x2 = pts[1][0][0]
+    y1 = pts[0][0][1]
+    y2 = pts[-1][0][1]
+
+    tx1 = get_random_string(12)
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    
+    upper = int(random.uniform(0, .4) * 10)
+    for i in range(upper):
+        cv2.putText(img, tx1, (int((x2-x1) // 3 * (1 + random.uniform(1, 2))) , y1 - y1 // (2 + i)), font, random.uniform(.4, .9), (0, 0, 0),2, cv2.LINE_AA)
     seq_shared = iaa.Sequential([
         # sometimes(iaa.Affine(
         #     scale={"x": (0.8, 1.0), "y": (0.8, 1.0)},
         #     # shear=(-6, 6),
         #     cval=(0, 0), # Black
         # ))
+        iaa.CropAndPad(
+            percent=(-0.07, 0.2),
+            # pad_mode=ia.ALL,
+            pad_mode=["edge"],
+            pad_cval=(150, 200)
+        )
     ])
 
     seq = iaa.Sequential([
-        iaa.SaltAndPepper(0.03, per_channel=False),
+        sometimes(iaa.SaltAndPepper(0.03, per_channel=False)),
         # Blur each image with varying strength using
         # gaussian blur (sigma between 0 and 3.0),
         # average/uniform blur (kernel size between 2x2 and 7x7)
         # median blur (kernel size between 1x1 and 5x5).
-       iaa.OneOf([
+       sometimes(iaa.OneOf([
             iaa.GaussianBlur((0, 2.0)),
             iaa.AverageBlur(k=(2, 7)),
             iaa.MedianBlur(k=(1, 3)),
-        ]),
-        
+        ])),
+
     ], random_order=True)
 
     masks = []
@@ -210,6 +235,7 @@ def augment_image(img, mask, pts, count):
         images.append(image_aug)
         # cv2.imwrite('/tmp/imgaug/%s.png' %(i), image_aug)
         # cv2.imwrite('/tmp/imgaug/%s_mask.png' %(i), mask_aug)
+
     return images, masks
 
     # image_aug = seq(image = img)
@@ -279,7 +305,7 @@ def create_mask(dir_src, dir_dest, cvat_annotation_file):
             mask_img = cv2.polylines(mask_img, [pts],  isClosed, (255, 255, 255), thickness) 
             mask_img = cv2.fillPoly(mask_img, [pts], (255, 255, 255) ) # white mask
             # Apply transformations to the image
-            aug_images, aug_masks = augment_image(img, mask_img, pts, 5)
+            aug_images, aug_masks = augment_image(img, mask_img, pts, 10)
             # Add originals
             aug_images.append(img)
             aug_masks.append(mask_img)
@@ -287,7 +313,7 @@ def create_mask(dir_src, dir_dest, cvat_annotation_file):
             for a_i, a_m in zip(aug_images, aug_masks):
                 img = a_i
                 mask_img = a_m
-                fname = "{}.{}.png".format(filename, index)
+                fname = "{}.{}.tif".format(filename.split('.')[0], index)
                 # # resize both src and dest
                 img_resized = resize_and_frame(img, height=target_height ,width = None, color = 255)
                 mask_resized = resize_and_frame(mask_img, height=target_height ,width = None, color = 0)
@@ -295,10 +321,11 @@ def create_mask(dir_src, dir_dest, cvat_annotation_file):
                 path_resized_dest = os.path.join(dir_dest, 'image',  fname)
                 path_mask_resized_dest = os.path.join(dir_dest, 'mask', fname)
 
+                print(path_resized_dest)
                 cv2.imwrite(path_resized_dest, img_resized)
                 cv2.imwrite(path_mask_resized_dest, mask_resized)
                 index = index + 1
-            # break
+            break
 
 
 def split(dir_src, dir_dest):
@@ -399,12 +426,12 @@ if __name__ == '__main__':
     data_dir_dest = '/home/greg/data-hipaa/forms/converted/resized'
     cvat_annotation_file ='/home/greg/dev/mxnet-matchbox/segmenter/data/annotations/task_hcfa-2020_09_04_21_12_31-cvat for images 1.1/annotations.xml'
 
-    # create_mask(data_dir_src, data_dir_dest, cvat_annotation_file)
+    create_mask(data_dir_src, data_dir_dest, cvat_annotation_file)
 
     data_dir_src = '/home/greg/data-hipaa/forms/converted/resized'
     data_dir_dest = '/home/greg/data-hipaa/forms/splitted'
 
-    split(data_dir_src, data_dir_dest)
+    # split(data_dir_src, data_dir_dest)
 
     # mean_('/home/greg/data-hipaa/forms/converted/resized/image')
 

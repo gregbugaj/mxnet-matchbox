@@ -31,7 +31,7 @@ if __name__ == '__main__':
     args = parse_args()
     args.network_param = './unet_best.params'
     args.dir_src = '/home/greg/data-hipaa/forms/hcfa-allstate'
-    args.dir_out = '/tmp/debug'
+    args.dir_out = '/tmp/debug-3'
     args.debug = False
     ctx = [mx.cpu()]
     
