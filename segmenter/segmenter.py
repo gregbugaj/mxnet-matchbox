@@ -296,7 +296,9 @@ if __name__ == '__main__':
     args.num_epochs = 500
     args.batch_size = 2
     args.num_classes = 2
+    args.learning_rate = 0.001
     batch_size = args.batch_size
+    
     num_workers = 8
 
     net = UNet(channels=3, num_class=args.num_classes)
