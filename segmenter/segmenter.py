@@ -287,7 +287,7 @@ if __name__ == '__main__':
         os.environ['MXNET_CUDA_VISIBLE_DEVICES'] = s
         os.environ['MXNET_CUDNN_AUTOTUNE_DEFAULT'] = '0'
 
-    # ctx = [mx.cpu()]
+    ctx = [mx.cpu()]
     # Hyperparameters
     args.num_epochs = 1000
     args.batch_size = 4
@@ -295,6 +295,15 @@ if __name__ == '__main__':
     batch_size = args.batch_size
     num_workers = 8
 
+    net = UNet(channels=3, num_class=args.num_classes)
+    net.initialize(init=init.Xavier(magnitude=6), ctx=ctx)
+    # https://mxnet.apache.org/versions/1.6/api/python/docs/tutorials/packages/gluon/blocks/hybridize.html
+    # net.hybridize() # Causes errror with the SHAPE  
+    # net.initialize(ctx=ctx)
+    print(net)
+    # net.summary(nd.ones((5,1,512,512)))
+
+    exit
     root_dir = os.path.join(args.data_dir)
     train_imgs = SegDataset(root='./data/train', colormap=COLORMAP, classes=CLASSES)
     test_imgs = SegDataset(root='./data/test', colormap=COLORMAP, classes=CLASSES)
@@ -311,14 +320,8 @@ if __name__ == '__main__':
     else:
         optimizer_params = {'learning_rate': args.learning_rate}
 
-    net = UNet(channels=3, num_class=args.num_classes)
-    net.initialize(init=init.Xavier(magnitude=6), ctx=ctx)
-    # https://mxnet.apache.org/versions/1.6/api/python/docs/tutorials/packages/gluon/blocks/hybridize.html
-    # net.hybridize() # Causes errror with the SHAPE  
-    # net.initialize(ctx=ctx)
-    print(net)
-    # net.summary(nd.ones((5,1,512,512)))
 
-    trainer = gluon.Trainer(net.collect_params(), args.optimizer, optimizer_params)
-    train(train_iter, test_iter, net, loss, trainer, ctx, num_epochs=args.num_epochs, log_dir=args.log_dir)
+
+    # trainer = gluon.Trainer(net.collect_params(), args.optimizer, optimizer_params)
+    # train(train_iter, test_iter, net, loss, trainer, ctx, num_epochs=args.num_epochs, log_dir=args.log_dir)
     print('Done')
