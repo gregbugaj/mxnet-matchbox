@@ -227,7 +227,7 @@ def parse_args():
 
     parser.add_argument('--lr-decay', type=float, default=0.1,
                         help='decay rate of learning rate. default is 0.1.')
-    parser.add_argument('--lr-decay-epoch', type=str, default='10, 20, 30, 40, 50',
+    parser.add_argument('--lr-decay-epoch', type=str, default='20, 30, 40, 50, 60, 70, 80, 90, 100',
                         help='epochs at which learning rate decays. default is 160,200.')
 
     parser.add_argument('--momentum',
@@ -271,10 +271,10 @@ def parse_args():
 
 
 if __name__ == '__main__':
-    # seed = 42
-    # random.seed = seed
-    # np.random.seed = seed
-    # mx.random.seed(seed)
+    seed = 42
+    random.seed = seed
+    np.random.seed = seed
+    mx.random.seed(seed)
 
     args = parse_args()
     print(args)
@@ -293,10 +293,14 @@ if __name__ == '__main__':
 
     # ctx = [mx.cpu()]
     # Hyperparameters
-    args.num_epochs = 500
-    args.batch_size = 2
+    args.num_epochs = 60
+    args.batch_size = 4
     args.num_classes = 2
-    args.learning_rate = 0.001
+    # args.learning_rate = 0.01  # .01 .007 .001
+
+    # Checking adam optimizer
+    args.optimizer = 'adam'
+    args.learning_rate = 1e-4
     batch_size = args.batch_size
     
     num_workers = 8

@@ -213,7 +213,6 @@ def imwrite(path, img):
     except Exception as ident:
         print(ident)
 
-
 if __name__ == '__main__':
     args = parse_args()
     args.network_param = './unet_best.params'

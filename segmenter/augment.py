@@ -122,7 +122,7 @@ def mean_(dir_src):
 
     filenames = os.listdir(dir_src)
     stats = []
-    for filename in filenames:
+    for i, filename in enumerate(filenames):
         try:
             # print (filename)
             # open image file
@@ -131,6 +131,10 @@ def mean_(dir_src):
             # img = cv2.cvtColor(img, cv2.COLOR_BGRA2RGBA)
             mean, std = cv2.meanStdDev(img)
             stats.append(np.array([mean, std]))
+
+            if i % 100 == 0:
+                vals = np.mean(stats, axis=0) / 255.0
+                print(vals)
             # img = cv2.imread(path)    
             # out = cv2.mean(img)
             # showAndDestroy('normal', img)
@@ -249,7 +253,6 @@ def ensure_exists(dir):
 def create_mask(dir_src, dir_dest, cvat_annotation_file):
     import xml.etree.ElementTree as ET
     import random
-
     print('resized : %s' % (dir_src))
     print('xml : %s' % (cvat_annotation_file))
 
@@ -427,12 +430,12 @@ if __name__ == '__main__':
     data_dir_dest = '/home/greg/data-hipaa/forms/converted/resized'
     cvat_annotation_file ='/home/greg/dev/mxnet-matchbox/segmenter/data/annotations/task_hcfa-2020_09_04_21_12_31-cvat for images 1.1/annotations.xml'
 
-    # create_mask(data_dir_src, data_dir_dest, cvat_annotation_file)
+    create_mask(data_dir_src, data_dir_dest, cvat_annotation_file)
 
     data_dir_src = '/home/greg/data-hipaa/forms/converted/resized'
     data_dir_dest = '/home/greg/data-hipaa/forms/splitted'
 
-    split(data_dir_src, data_dir_dest)
+    # split(data_dir_src, data_dir_dest)
 
     # mean_('/home/greg/data-hipaa/forms/converted/resized/image')
 

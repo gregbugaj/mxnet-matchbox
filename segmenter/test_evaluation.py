@@ -36,7 +36,9 @@ if __name__ == '__main__':
     # /home/gbugaj/mxnet-training/hicfa/raw-2/
     # args.dir_src = '/home/gbugaj/mxnet-training/hicfa/raw/HCFA-Bad-Images'
     args.dir_src = '/home/gbugaj/mxnet-training/hicfa/raw/HCFA-AllState'
-    # args.dir_src = '/home/gbugaj/mxnet-training/hicfa/raw-2'
+    args.dir_src = '/home/gbugaj/mxnet-training/hicfa/raw-2'
+    args.dir_src = '/home/greg/data-hipaa/forms/hcfa-allstate'
+    
     args.dir_out = '/tmp/debug-2'
 
     args.debug = False

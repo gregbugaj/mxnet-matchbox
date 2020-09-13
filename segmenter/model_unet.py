@@ -12,9 +12,7 @@ from mxnet.gluon import nn, loss as gloss, data as gdata
 from mxnet import autograd, nd, init, image
 import numpy as np
 # import logging
-
 # logging.basicConfig(level=logging.CRITICAL)
-
 class BaseConvBlock(nn.HybridBlock):
     def __init__(self, channels, **kwargs):
         super(BaseConvBlock, self).__init__(**kwargs)
@@ -29,14 +27,17 @@ class BaseConvBlock(nn.HybridBlock):
     def hybrid_forward(self, F, x, *args, **kwargs):
         # BatchNorm input will typically be unnormalized activations from the previous layer,
         # and the output will be the normalized activations ready for the next layer.
+        # https://www.reddit.com/r/MachineLearning/comments/67gonq/d_batch_normalization_before_or_after_relu/
+        # Switched order of RELU > BN to BN > RELU
+    
         x = self.conv1(x)
         x = self.bn1(x)
         x = F.relu(x)   # Activation
-
+        
         x = self.conv2(x)
-        x = self.bn2(x)    
-        x = F.relu(x)   # Activation 
-          
+        x = self.bn2(x)  
+        x = F.relu(x)   # Activation  
+
         return x
 
 class UpsampleConvLayer(nn.HybridBlock):
@@ -56,22 +57,24 @@ class UpsampleConvLayer(nn.HybridBlock):
 
     def hybrid_forward(self, F, x, *args, **kwargs):
         # sample_type= nearest |  bilinear
+        # for bilinear
+        # y1 = mx.nd.contrib.BilinearResize2D(x1, out_height=5, out_width=5)
         x = F.UpSampling(x, scale=self.factor, sample_type='nearest')
-        out = self.conv2d(x)
-        return out
+        return self.conv2d(x)
 
 class DownSampleBlock(nn.HybridBlock):
     def __init__(self, channels, **kwargs):
         super(DownSampleBlock, self).__init__(**kwargs)
         self.conv = BaseConvBlock(channels)
         self.maxPool = nn.MaxPool2D(pool_size=2, strides=2)
+        # self.dropout = nn.Dropout(0.3)
 
     def hybrid_forward(self, F, x, *args, **kwargs):
-        x = self.conv(x)
         x = self.maxPool(x)
+        x = self.conv(x)
+        # x = self.dropout(x)
         # logging.info(x.shape)
         return x
-
 
 class UpSampleBlock(nn.HybridSequential):
     def __init__(self, channels, **kwargs):
@@ -80,6 +83,7 @@ class UpSampleBlock(nn.HybridSequential):
         # self.up = nn.Conv2DTranspose(channels, kernel_size=4, padding=1, strides=2)
         self.up = UpsampleConvLayer(channels, kernel_size=3, stride=1, factor=2)
         self.conv = BaseConvBlock(channels)
+        # self.dropout = nn.Dropout(.3)
 
     def hybrid_forward(self, F, x1, *args, **kwargs):
         x2 = args[0]
@@ -87,6 +91,7 @@ class UpSampleBlock(nn.HybridSequential):
         # The same as paper
         # x2 = x2[:, :, :x1.shape[2], : x1.shape[3]]
 
+        # input is CHW
         # Fill in x1 shape to be the same as the x2
         diffY = x2.shape[2] - x1.shape[2]
         diffX = x2.shape[3] - x1.shape[3]
@@ -98,6 +103,7 @@ class UpSampleBlock(nn.HybridSequential):
                                diffX // 2, diffX - diffX // 2))
 
         x = nd.concat(x1, x2, dim=1)
+        # x = self.dropout(x)
         # logging.info(x.shape)
         return self.conv(x)
 
