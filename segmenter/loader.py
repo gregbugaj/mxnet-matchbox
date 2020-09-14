@@ -14,8 +14,8 @@ class SegDataset(gdata.Dataset):
        self.rgb_std = nd.array([0.16871583, 0.16871583, 0.16871583])
 
        # second set
-       self.rgb_mean = nd.array([0.947703, 0.947703, 0.947703])
-       self.rgb_std = nd.array([0.12361123, 0.12361123, 0.12361123])
+       self.rgb_mean = nd.array([0.92531412, 0.92531412, 0.92531412])
+       self.rgb_std = nd.array([0.18134897, 0.18134897, 0.18134897])
 
     #    self.rgb_mean = nd.array([0.448, 0.456, 0.406])
     #    self.rgb_std = nd.array([0.229, 0.224, 0.225])

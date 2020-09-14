@@ -27,6 +27,10 @@ def parse_args():
 
     return parser.parse_args()
 
+def ensure_exists(dir):
+    if not os.path.exists(dir):
+        os.makedirs(dir)
+
 if __name__ == '__main__':
     args = parse_args()
     args.network_param = './unet_best.params'
@@ -52,14 +56,17 @@ if __name__ == '__main__':
     if not os.path.exists(dir_out):
         os.makedirs(dir_out)
 
+    ensure_exists(os.path.join(dir_out,'masks'))
+    ensure_exists(os.path.join(dir_out,'segments'))
+
     for filename in filenames:
         try:
             img_path = os.path.join(dir_src, filename)
             print (img_path)
             src, mask, segment = recognize(network_param, img_path, (3500, 2500), ctx, False)
             # imwrite(os.path.join(dir_out, "%s_%s" % (filename, 'src.tif')), src)
-            imwrite(os.path.join(dir_out,'mask', "%s_%s" % (filename, 'mask.tif')), mask)
-            imwrite(os.path.join(dir_out, 'segment', "%s_%s" % (filename, 'segment.tif')), segment)
+            imwrite(os.path.join(dir_out,'masks', "%s_%s" % (filename, 'mask.tif')), mask)
+            imwrite(os.path.join(dir_out, 'segments', "%s_%s" % (filename, 'segment.tif')), segment)
         except Exception as e:
             print(e)
         

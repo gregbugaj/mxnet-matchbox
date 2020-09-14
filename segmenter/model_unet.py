@@ -20,9 +20,12 @@ class BaseConvBlock(nn.HybridBlock):
         # here, I use padding to get the output of the same shape as input
 
         self.conv1 = nn.Conv2D(channels, kernel_size=3, padding=1)
-        self.bn1 = nn.BatchNorm()
+        # self.bn1 = nn.BatchNorm(use_global_stats = True)
+        self.bn1 = nn.LayerNorm()
+        
         self.conv2 = nn.Conv2D(channels, kernel_size=3, padding=1)
-        self.bn2 = nn.BatchNorm()
+        # self.bn2 = nn.BatchNorm(use_global_stats = True)
+        self.bn2 = nn.LayerNorm()
 
     def hybrid_forward(self, F, x, *args, **kwargs):
         # BatchNorm input will typically be unnormalized activations from the previous layer,
