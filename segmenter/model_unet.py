@@ -11,34 +11,39 @@
 from mxnet.gluon import nn, loss as gloss, data as gdata
 from mxnet import autograd, nd, init, image
 import numpy as np
+
 # import logging
-# logging.basicConfig(level=logging.CRITICAL)
+# logging.basicConfig(level=# logging.CRITICAL)
+
 class BaseConvBlock(nn.HybridBlock):
-    def __init__(self, channels, **kwargs):
+    def __init__(self, channels, regularization, **kwargs):
         super(BaseConvBlock, self).__init__(**kwargs)
+        def norm_layer(regularization):
+            if regularization == 'batch_norm':            
+                return nn.BatchNorm()
+            elif regularization == 'layer_norm':            
+                return nn.LayerNorm()
+            raise ValueError("Unknow regularization type : %s" %(regularization))
+
         # no-padding in the paper
         # here, I use padding to get the output of the same shape as input
-
         self.conv1 = nn.Conv2D(channels, kernel_size=3, padding=1)
-        # self.bn1 = nn.BatchNorm(use_global_stats = True)
-        self.bn1 = nn.LayerNorm()
-        
+        self.norm1 = norm_layer(regularization)
+
         self.conv2 = nn.Conv2D(channels, kernel_size=3, padding=1)
-        # self.bn2 = nn.BatchNorm(use_global_stats = True)
-        self.bn2 = nn.LayerNorm()
+        self.norm2 = norm_layer(regularization)
 
     def hybrid_forward(self, F, x, *args, **kwargs):
         # BatchNorm input will typically be unnormalized activations from the previous layer,
         # and the output will be the normalized activations ready for the next layer.
         # https://www.reddit.com/r/MachineLearning/comments/67gonq/d_batch_normalization_before_or_after_relu/
-        # Switched order of RELU > BN to BN > RELU
-    
+
         x = self.conv1(x)
-        x = self.bn1(x)
+        x = self.norm1(x)
         x = F.relu(x)   # Activation
         
         x = self.conv2(x)
-        x = self.bn2(x)  
+        x = self.norm2(x)  
         x = F.relu(x)   # Activation  
 
         return x
@@ -66,26 +71,28 @@ class UpsampleConvLayer(nn.HybridBlock):
         return self.conv2d(x)
 
 class DownSampleBlock(nn.HybridBlock):
-    def __init__(self, channels, **kwargs):
-        super(DownSampleBlock, self).__init__(**kwargs)
-        self.conv = BaseConvBlock(channels)
+    def __init__(self, channels, regularization, **kwargs):
+        super(DownSampleBlock, self).__init__(**kwargs)    
+        print('channels-d: %s ' %(channels))
+        self.channels = channels
+        self.conv = BaseConvBlock(channels, regularization)
         self.maxPool = nn.MaxPool2D(pool_size=2, strides=2)
-        # self.dropout = nn.Dropout(0.3)
+    
 
     def hybrid_forward(self, F, x, *args, **kwargs):
         x = self.maxPool(x)
         x = self.conv(x)
-        # x = self.dropout(x)
         # logging.info(x.shape)
         return x
 
 class UpSampleBlock(nn.HybridSequential):
-    def __init__(self, channels, **kwargs):
+    def __init__(self, channels, regularization, **kwargs):
         super(UpSampleBlock, self).__init__(**kwargs)
+        print('channels-u: %s ' %(channels))
         self.channels = channels
         # self.up = nn.Conv2DTranspose(channels, kernel_size=4, padding=1, strides=2)
         self.up = UpsampleConvLayer(channels, kernel_size=3, stride=1, factor=2)
-        self.conv = BaseConvBlock(channels)
+        self.conv = BaseConvBlock(channels, regularization)
         # self.dropout = nn.Dropout(.3)
 
     def hybrid_forward(self, F, x1, *args, **kwargs):
@@ -112,16 +119,20 @@ class UpSampleBlock(nn.HybridSequential):
 
 
 class UNet(nn.HybridSequential):
-    def __init__(self, channels, num_class, **kwargs):
+    def __init__(self, channels, num_class, regularization='layer_norm', **kwargs):
         super(UNet, self).__init__(**kwargs)
+        self.regularization = regularization
+        self.input_conv = BaseConvBlock(channels, regularization)
 
-        # contracting path -> encoder
-        self.input_conv = BaseConvBlock(64)
+        # contracting path -> encoder        
         for i in range(4):
-            setattr(self, 'down_conv_%d' % i, DownSampleBlock(channels * 2 ** (i + 1)))
+            setattr(self, 'down_conv_%d' % i, DownSampleBlock(channels * 2 ** (i + 1), regularization))
+
         # expanding path  -> decoder
         for i in range(4):
-            setattr(self, 'up_conv_%d' % i, UpSampleBlock(channels * 16 // (2 ** (i + 1))))
+            setattr(self, 'up_conv_%d' % i, UpSampleBlock(channels * 16 // (2 ** (i + 1)), regularization))
+
+        # Final convolution
         self.output_conv = nn.Conv2D(num_class, kernel_size=1)
 
     def hybrid_forward(self, F, x, *args, **kwargs):
@@ -145,4 +156,6 @@ class UNet(nn.HybridSequential):
         # logging.info(x.shape)
         x = getattr(self, 'up_conv_3')(x, x1)
         # logging.info(x.shape)
-        return self.output_conv(x)
+        x = self.output_conv(x)
+        # logging.info(x.shape)
+        return x

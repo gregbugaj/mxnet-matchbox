@@ -255,7 +255,7 @@ def parse_args():
                         type=str,
                         default='data')
     parser.add_argument('--log_dir',
-                        help="the directory of 'UNet_log.txt'. (default: %(default)s)",
+                        help="the directory of 'unet_log.txt'. (default: %(default)s)",
                         type=str,
                         default='./')
     parser.add_argument('--checkpoints_dir',
@@ -266,9 +266,27 @@ def parse_args():
                         help='whether or not to even split the data to all GPUs. (default: %(default)s)',
                         type=bool,
                         default=True)
+    
+    parser.add_argument('--checkpoint', 
+                        dest='checkpoint', 
+                        help='Traing new network or start from specific weights. (default: %(default)s)', 
+                        type=str,
+                        default='new'
+                        )
+    parser.add_argument('--checkpoint-file', 
+                        dest='checkpoint_file', 
+                        help='Checkpoint file to start trainging from.', 
+                        type=str,
+                        default=None)
+
+    parser.add_argument('--checkpoint-last', 
+                        dest='checkpoint_last', 
+                        help='Finds last checkpoint file to start training from. (default: %(default)s)', 
+                        type=str,
+                        default='./unet_best.params')
+
 
     return parser.parse_args()
-
 
 if __name__ == '__main__':
     # seed = 42
@@ -291,7 +309,7 @@ if __name__ == '__main__':
         os.environ['MXNET_CUDA_VISIBLE_DEVICES'] = s
         os.environ['MXNET_CUDNN_AUTOTUNE_DEFAULT'] = '0'
 
-    # ctx = [mx.cpu()]
+    ctx = [mx.cpu()]
     # Hyperparameters
     args.num_epochs = 200
     args.batch_size = 6 
@@ -303,23 +321,23 @@ if __name__ == '__main__':
     #args.optimizer = 'adam'
     #args.learning_rate = 3e-4
     batch_size = args.batch_size
-    
     num_workers = 8
 
-    net = UNet(channels=3, num_class=args.num_classes)
+    net = UNet(channels=64, num_class=args.num_classes)
     net.initialize(init=init.Xavier(magnitude=6), ctx=ctx)
     # https://mxnet.apache.org/versions/1.6/api/python/docs/tutorials/packages/gluon/blocks/hybridize.html
     # net.hybridize() # Causes errror with the SHAPE  
-    net.initialize(ctx=ctx)
+    # net.initialize(ctx=ctx)
     print(net)
-    # net.summary(nd.ones((5,1,512,512)))
+    net.summary(nd.ones((1, 3, 256, 256))) #NCHW
 
     # out = net(nd.ones((5,1,512,512)))
     # file_name = "net"
     # net.export(file_name)
     # print('Network saved : %s' % (file_name))
 
-    # sys.exit()
+
+    sys.exit()
      
     root_dir = os.path.join(args.data_dir)
     train_imgs = SegDataset(root='./data/train', colormap=COLORMAP, classes=CLASSES)
@@ -337,6 +355,6 @@ if __name__ == '__main__':
     else:
         optimizer_params = {'learning_rate': args.learning_rate}
 
-    trainer = gluon.Trainer(net.collect_params(), args.optimizer, optimizer_params)
-    train(train_iter, test_iter, net, loss, trainer, ctx, num_epochs=args.num_epochs, log_dir=args.log_dir)
+    # trainer = gluon.Trainer(net.collect_params(), args.optimizer, optimizer_params)
+    # train(train_iter, test_iter, net, loss, trainer, ctx, num_epochs=args.num_epochs, log_dir=args.log_dir)
     print('Done')

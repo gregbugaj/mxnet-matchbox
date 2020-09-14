@@ -108,7 +108,7 @@ def recognize(network_parameters, image_path, form_shape, ctx, debug):
 
     # At one point this can be generalized but right now I don't see this changing 
     n_classes = 2
-    n_channels = 3
+    n_channels = 64
     img_width = 512
     img_height = 512
 
