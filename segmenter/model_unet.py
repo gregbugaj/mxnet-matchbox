@@ -51,11 +51,10 @@ class BaseConvBlock(nn.HybridBlock):
         x = self.conv2(x)
         x = self.norm2(x)  
         # x = F.relu(x)   # Activation  
-        
         connection = nd.add(res, x)
         x = F.relu(connection)   # Activation  
 
-        return 
+        return x
 
 class UpsampleConvLayer(nn.HybridBlock):
     """UpsampleConvLayer
