@@ -84,6 +84,34 @@ def resize_and_frame(image, width = None, height = None, color = 255):
 
     return ratio, l_img
 
+
+def iou_metric(a, b, epsilon=1e-5, conversion_mode='cast', conversion_params={'p1' : .5, 'p2' : .5}):
+    """Intersection Over Union Metric
+
+    Args:
+        a:                  (numpy array) component a
+        b:                  (numpy array) component b
+        epsilon:            (float) Small value to prevent division by zereo
+        conversion_mode:    (cast|predicate) Array conversion mode to bool
+        conversion_params:  (dictionary) Conversion parameter dictionary 
+
+    Returns:
+        (float) The Intersect of Union score.
+    """
+    if conversion_mode == 'cast':
+        d1 = a.astype('bool')
+        d2 = b.astype('bool')
+    elif conversion_mode == 'predicate': 
+        d1 = np.where(a > float(conversion_params['p1']), True, False)
+        d2 = np.where(b > float(conversion_params['p2']), True, False)        
+    else:
+        raise ValueError("Unknown conversion type : %s" % (conversion_mode))        
+
+    overlap = d1 * d2 # logical AND
+    union = d1 + d2 # logical OR
+    iou = overlap.sum() / (union.sum() + epsilon)
+    return iou
+
 def recognize(network_parameters, image_path, form_shape, ctx, debug):
     """Recognize form
 

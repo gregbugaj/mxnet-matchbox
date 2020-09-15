@@ -95,12 +95,17 @@ class DownSampleBlock(nn.HybridBlock):
         return x
 
 class UpSampleBlock(nn.HybridSequential):
-    def __init__(self, channels, regularization, **kwargs):
+    def __init__(self, channels, regularization, upmode, **kwargs):
         super(UpSampleBlock, self).__init__(**kwargs)
         print('channels-u: %s ' %(channels))
         self.channels = channels
-        # self.up = nn.Conv2DTranspose(channels, kernel_size=4, padding=1, strides=2)
-        self.up = UpsampleConvLayer(channels, kernel_size=3, stride=1, factor=2)
+        if upmode == 'upconv':
+            self.up = nn.Conv2DTranspose(channels, kernel_size=4, padding=1, strides=2)
+        elif upmode == 'upsample':
+            self.up = UpsampleConvLayer(channels, kernel_size=3, stride=1, factor=2)
+        else: 
+            raise ValueError("Unknow regularization type : %s" %(regularization))
+
         self.conv = BaseConvBlock(channels, regularization)
         # self.dropout = nn.Dropout(.3)
 
@@ -140,7 +145,7 @@ class UNet(nn.HybridSequential):
 
         # expanding path  -> decoder
         for i in range(4):
-            setattr(self, 'up_conv_%d' % i, UpSampleBlock(channels * 16 // (2 ** (i + 1)), regularization))
+            setattr(self, 'up_conv_%d' % i, UpSampleBlock(channels * 16 // (2 ** (i + 1)), regularization, 'upsample'))
 
         # Final convolution
         self.output_conv = nn.Conv2D(num_class, kernel_size=1)
