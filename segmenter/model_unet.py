@@ -1,5 +1,9 @@
 # U-Net Model
-# Note: I modify the U-Net to get the ouput of the same shape as input
+# Changed U-Net to get the ouput of the same shape as input (original)
+# Add LeakyRELU
+# Add Layer/Batch Normalization
+# Add ResBlock skip connections
+# Change Conv2DTranspose to use Up Sample (Conv2D > UpScale x2)
 
 # UpSampling2D info
 # https://github.com/apache/incubator-mxnet/issues/7758
@@ -25,8 +29,8 @@ class BaseConvBlock(nn.HybridBlock):
                 return nn.LayerNorm()
             raise ValueError("Unknow regularization type : %s" %(regularization))
 
-        # Residual/Skip connection 
-        self.residual = nn.Conv2D(channels, kernel_size=1, padding=1)
+        # Residual/Skip connection (ResBlock)
+        self.residual = nn.Conv2D(channels, kernel_size=1, padding=0) # Identity
 
         # no-padding in the paper
         # here, I use padding to get the output of the same shape as input
@@ -40,19 +44,17 @@ class BaseConvBlock(nn.HybridBlock):
         # BatchNorm input will typically be unnormalized activations from the previous layer,
         # and the output will be the normalized activations ready for the next layer.
         # https://www.reddit.com/r/MachineLearning/comments/67gonq/d_batch_normalization_before_or_after_relu/
-        
-        # Residual/Skip connection 
-        res = self.residual(x)
 
+        res = self.residual(x)
         x = self.conv1(x)
         x = self.norm1(x)
-        x = F.relu(x)   # Activation
+        x = F.LeakyReLU(x)  
         
         x = self.conv2(x)
         x = self.norm2(x)  
-        # x = F.relu(x)   # Activation  
+
         connection = nd.add(res, x)
-        x = F.relu(connection)   # Activation  
+        x = F.LeakyReLU(connection)
 
         return x
 
@@ -84,8 +86,7 @@ class DownSampleBlock(nn.HybridBlock):
         print('channels-d: %s ' %(channels))
         self.channels = channels
         self.conv = BaseConvBlock(channels, regularization)
-        self.maxPool = nn.MaxPool2D(pool_size=2, strides=2)
-    
+        self.maxPool = nn.MaxPool2D(pool_size=2, strides=2)    
 
     def hybrid_forward(self, F, x, *args, **kwargs):
         x = self.maxPool(x)
@@ -130,8 +131,9 @@ class UNet(nn.HybridSequential):
     def __init__(self, channels, num_class, regularization='layer_norm', **kwargs):
         super(UNet, self).__init__(**kwargs)
         self.regularization = regularization
-
+        # Input 
         self.input_conv = BaseConvBlock(channels, regularization)
+
         # contracting path -> encoder        
         for i in range(4):
             setattr(self, 'down_conv_%d' % i, DownSampleBlock(channels * 2 ** (i + 1), regularization))
