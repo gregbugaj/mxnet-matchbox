@@ -42,7 +42,6 @@ if __name__ == '__main__':
 
     iou = iou_metric(c1, c2, conversion_mode = 'predicate')
     print(iou)
-    sys.exit(0)
     # /home/gbugaj/mxnet-training/hicfa/raw-2/
     # args.dir_src = '/home/gbugaj/mxnet-training/hicfa/raw/HCFA-Bad-Images'
     args.dir_src = '/home/gbugaj/mxnet-training/hicfa/raw/HCFA-AllState'

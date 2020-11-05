@@ -46,3 +46,9 @@ Conv2DTranspose  - https://github.com/keras-team/keras/issues/7307
 python -m pip install git+https://github.com/aleju/imgaug
 python -m pip install mxboard
 ```
+
+
+## Start tensorboard
+```
+tensorboard --logdir=./logs --host=127.0.0.1 --port=8888
+```

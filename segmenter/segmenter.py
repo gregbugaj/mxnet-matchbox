@@ -321,7 +321,7 @@ if __name__ == '__main__':
 
     # Checking adam optimizer
     args.optimizer = 'adam'
-    args.learning_rate = 3e-4
+    args.learning_rate = 1e-3
     batch_size = args.batch_size
     num_workers = 8
 
